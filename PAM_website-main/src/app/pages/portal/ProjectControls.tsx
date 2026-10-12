@@ -1,0 +1,44 @@
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { usePortalData } from '../../portal/data';
+import { useAuth } from '../../portal/auth';
+import type { Project } from '../../portal/types';
+import { Button } from '../../portal/Button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+
+export function ProjectControls({project}: {project:Project}) {
+  const {users,updateProject,addSite} = usePortalData();
+  const {hasRole} = useAuth();
+  const [open,setOpen] = useState(false);
+  const [busy,setBusy] = useState(false);
+  const [name,setName] = useState(project.name);
+  const [status,setStatus] = useState(project.status);
+  const [assigned,setAssigned] = useState(project.assignedUserIds ?? []);
+  const [siteName,setSiteName] = useState('');
+  const [address,setAddress] = useState('');
+  if (!hasRole('admin','project_manager')) return null;
+  const save = async () => {
+    setBusy(true);
+    try { await updateProject(project.id,{name,status,...(hasRole('admin') ? {assignedUserIds:assigned} : {})}); setOpen(false); toast.success('Project updated.'); }
+    catch (error) { toast.error((error as Error).message); }
+    finally { setBusy(false); }
+  };
+  return <Dialog open={open} onOpenChange={setOpen}>
+    <DialogTrigger asChild><Button variant="outline">Manage project</Button></DialogTrigger>
+    <DialogContent><DialogHeader><DialogTitle>Manage project</DialogTitle></DialogHeader>
+      <div className="space-y-1.5"><Label htmlFor="edit-project-name">Project name</Label><Input id="edit-project-name" value={name} onChange={e=>setName(e.target.value)} /></div>
+      <div className="space-y-1.5"><Label htmlFor="edit-project-status">Status</Label><select className="h-9 w-full rounded-md border bg-input-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-orange-500/40" id="edit-project-status" value={status} onChange={e=>setStatus(e.target.value as Project['status'])}>
+        <option value="ongoing">Ongoing</option><option value="on_hold">On hold</option><option value="completed">Completed</option>
+      </select></div>
+      {hasRole('admin') && <fieldset className="space-y-2"><legend className="font-medium">Assigned staff</legend><p className="text-xs text-gray-500">Assigned users can submit reports at every site in this project.</p>{users.map(u=><label key={u.id} className="flex gap-2 text-sm"><input type="checkbox" checked={assigned.includes(u.id)} onChange={e=>setAssigned(e.target.checked ? [...assigned,u.id] : assigned.filter(id=>id!==u.id))}/>{u.name}</label>)}</fieldset>}
+      <Button disabled={busy || !name.trim()} onClick={()=>void save()}>Save project</Button>
+      <form className="border-t pt-4 space-y-4" onSubmit={async e=>{e.preventDefault();setBusy(true);try {await addSite(project.id,siteName,address);setSiteName('');setAddress('');toast.success('Site added.');} catch(error){toast.error((error as Error).message);}finally{setBusy(false);}}}>
+        <div className="space-y-1.5"><Label htmlFor="new-site-name">New site name</Label><Input id="new-site-name" value={siteName} onChange={e=>setSiteName(e.target.value)} required/></div>
+        <div className="space-y-1.5"><Label htmlFor="new-site-address">Address</Label><Input id="new-site-address" value={address} onChange={e=>setAddress(e.target.value)}/></div>
+        <Button variant="outline" disabled={busy} type="submit">Add site</Button>
+      </form>
+    </DialogContent>
+  </Dialog>;
+}
