@@ -54,7 +54,7 @@ Open the Vite URL and navigate to `/portal/login`. Vite alone cannot serve the b
 
 ### 4. Deploy and verify
 
-Set the Vercel project root to `PAM_website-main` if this folder is nested in your repository. The build is `npm run build`, the output directory is `dist`, and `vercel.json` explicitly uses `npm ci` with `package-lock.json`. The older pnpm lockfile is not used by this deployment; use npm for this change.
+Set the Vercel project root to `PAM_website-main` if this folder is nested in your repository. The build is `npm run build`, the output directory is `dist`, and `vercel.json` explicitly uses `npm ci` with `package-lock.json`. The outdated pnpm lockfile has been removed; npm and package-lock.json are the single package-manager source for this project. If a deployment still runs pnpm install, verify that the latest changes were pushed, the project root contains this vercel.json, and the deployment Install Command is npm ci.
 
 Configure the three required backend variables in Vercel before deploying. Run migrations and the seed against the intended environment's database from your local setup. Deploy only after that succeeds. The portal API paths are rewritten to a single serverless dispatcher, so this adds one function rather than one function per contract route.
 

@@ -1,6 +1,7 @@
 {
   "name": "@figma/my-make-file",
   "private": true,
+  "packageManager": "npm@10.9.8",
   "version": "0.0.1",
   "type": "module",
   "scripts": {
@@ -99,11 +100,6 @@
     },
     "react-dom": {
       "optional": true
-    }
-  },
-  "pnpm": {
-    "overrides": {
-      "vite": "6.3.5"
     }
   }
 }

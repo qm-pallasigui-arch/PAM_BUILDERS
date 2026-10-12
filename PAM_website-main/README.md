@@ -7,6 +7,8 @@
 
   Run `npm i` to install the dependencies.
 
+  Use npm for this project. Commit `package-lock.json` with dependency changes; CI installs with `npm ci`. Do not add a pnpm lockfile. Vercel must use the directory containing this package.json and vercel.json as its project root.
+
   Run `npm run dev` to start the development server.
 
   For staff login, database setup, and the local portal API, follow [Local backend setup](LOCAL_BACKEND_SETUP.md).
