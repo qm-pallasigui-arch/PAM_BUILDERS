@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "build:demo": "vite build --mode demo",
     "dev": "vite",
     "dev:demo": "vite --mode demo --host 127.0.0.1 --port 5174 --strictPort",
     "typecheck": "tsc --noEmit",

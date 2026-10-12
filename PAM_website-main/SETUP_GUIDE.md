@@ -2,6 +2,8 @@
 
 Follow these steps in order. Each one is required before your site goes live.
 
+> The current Vercel configuration builds a database-free demo with `npm run build:demo`. For real staff accounts, change `vercel.json` buildCommand to `npm run build` before following the deployment steps below.
+
 ## Internal portal backend setup (2026-10-06)
 
 The portal now requires its API and database. There is no browser mock-data fallback.

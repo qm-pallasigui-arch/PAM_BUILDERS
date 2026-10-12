@@ -2,7 +2,7 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 export async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
-  if (import.meta.env.DEV && import.meta.env.MODE === 'demo') {
+  if (import.meta.env.MODE === 'demo') {
     const { demoApi } = await import('./demo');
     return demoApi(path, method, body) as T;
   }
@@ -36,6 +36,6 @@ export async function uploadPhoto(file: File, projectId: number, siteId: number)
     reader.onerror = () => reject(new Error('Unable to read the photo.'));
     reader.readAsDataURL(file);
   });
-  if (import.meta.env.DEV && import.meta.env.MODE === 'demo') return `data:${file.type};base64,${data}`;
+  if (import.meta.env.MODE === 'demo') return `data:${file.type};base64,${data}`;
   return (await api<{url:string}>('reports/photo','POST',{projectId,siteId,contentType:file.type,data})).url;
 }

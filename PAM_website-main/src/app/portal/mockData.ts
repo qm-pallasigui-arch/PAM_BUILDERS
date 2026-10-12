@@ -1,4 +1,4 @@
-// Seed fixtures and opt-in local demo data. Excluded from production browser builds.
+// Seed fixtures and explicit demo builds. Excluded from standard backend-enabled builds.
 import type {
   PortalUser,
   Project,

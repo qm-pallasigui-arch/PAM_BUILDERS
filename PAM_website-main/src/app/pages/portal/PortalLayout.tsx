@@ -58,7 +58,7 @@ export function PortalLayout() {
         <span className="text-white font-semibold">PAM Builders Portal</span>
       </div>
       <nav className="flex-1 px-2 py-4 space-y-1">
-        {import.meta.env.DEV && import.meta.env.MODE === 'demo' && <p className="px-3 py-2 text-xs text-amber-200">Local demo. Changes reset on reload.</p>}
+        {import.meta.env.MODE === 'demo' && <p className="px-3 py-2 text-xs text-amber-200">Demo mode. Changes reset on reload.</p>}
         {visibleItems.map((item) => (
           <NavLink
             key={item.to}
