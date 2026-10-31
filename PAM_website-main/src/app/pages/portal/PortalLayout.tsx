@@ -10,6 +10,7 @@ import {
   Users,
   LogOut,
   Globe,
+  ChevronDown,
   Menu,
   X,
 } from "lucide-react";
@@ -34,12 +35,20 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/portal/users", label: "Users", icon: Users, roles: ["admin"] },
 ];
 
+const WEBSITE_ITEMS = [
+  {to:"/portal/website-projects",label:"Projects"},
+  {to:"/portal/website-about",label:"About"},
+  {to:"/portal/website-contact",label:"Contact"},
+];
+
 /** Wraps every /portal/* route. Redirects to /portal/login if not authenticated. */
 export function PortalLayout() {
   const { user, loading, logout, hasRole } = useAuth();
   const { loading: dataLoading, error: dataError, refresh } = usePortalData();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [websiteNavOpen, setWebsiteNavOpen] = useState(true);
+  const websiteActive = WEBSITE_ITEMS.some(item=>location.pathname===item.to);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading…</div>;
@@ -76,6 +85,14 @@ export function PortalLayout() {
             {item.label}
           </NavLink>
         ))}
+        {hasRole("admin") && <div className="mt-4 border-t border-gray-800 pt-3">
+          <button type="button" aria-expanded={websiteNavOpen} onClick={()=>setWebsiteNavOpen(open=>!open)} className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors ${websiteActive?'bg-gray-800 text-orange-300':'text-gray-300 hover:bg-gray-800 hover:text-white'}`}>
+            <Globe className="h-4 w-4 shrink-0"/><span className="flex-1">Website Content</span><ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${websiteNavOpen?'':'-rotate-90'}`}/>
+          </button>
+          {websiteNavOpen && <div className="ml-5 mt-1 space-y-1 border-l border-gray-700 pl-3">
+            {WEBSITE_ITEMS.map(item=><NavLink key={item.to} to={item.to} onClick={()=>setMobileNavOpen(false)} className={({isActive})=>`block rounded-md px-3 py-2 text-sm transition-colors ${isActive?'bg-orange-600 text-white':'text-gray-300 hover:bg-gray-800 hover:text-white'}`}>{item.label}</NavLink>)}
+          </div>}
+        </div>}
       </nav>
       <div className="px-4 py-4 border-t border-gray-800">
         <Button asChild variant="outline" className="mb-4 w-full border-orange-500 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20 hover:text-orange-100 focus-visible:ring-orange-400"><Link to="/" onClick={() => setMobileNavOpen(false)}>
@@ -99,7 +116,7 @@ export function PortalLayout() {
   return (
     <div className="min-h-screen flex bg-gray-50 text-sm leading-6 text-gray-900">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-gray-900 shrink-0">
+      <aside className="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 z-40 w-64 overflow-y-auto bg-gray-900">
         <SidebarContent />
       </aside>
 
@@ -115,7 +132,7 @@ export function PortalLayout() {
       </div>
       {mobileNavOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 bg-gray-900 flex flex-col">
+          <div className="w-64 max-h-dvh overflow-y-auto bg-gray-900 flex flex-col">
             <div className="flex items-center justify-end px-4 h-14 border-b border-gray-800">
               <button onClick={() => setMobileNavOpen(false)} aria-label="Close menu">
                 <X className="h-6 w-6 text-white" />
@@ -127,7 +144,7 @@ export function PortalLayout() {
         </div>
       )}
 
-      <main className="flex-1 min-w-0 pt-14 lg:pt-0">
+      <main className="flex-1 min-w-0 pt-14 lg:pt-0 lg:ml-64">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {dataLoading ? <p role="status">Loading portal data...</p> : dataError ? <div role="alert"><p>{dataError}</p><Button onClick={() => void refresh()}>Retry</Button></div> : <Outlet />}
         </div>

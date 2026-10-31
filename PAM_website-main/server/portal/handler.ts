@@ -6,6 +6,7 @@ import { database, transaction, type Database, type Queryable } from './db.js';
 import { HttpError, authenticate, newSession, projectAccess, roles, sameOrigin, sessionToken, setCookie, sign } from './security.js';
 import * as v from './validation.js';
 import * as q from './queries.js';
+import { contentRoute } from './content.js';
 
 const managers = ['admin', 'project_manager'];
 const notFound = () => { throw new HttpError(404, 'Not found.'); };
@@ -22,6 +23,12 @@ async function assignments(db: Queryable, projectId: number, ids: number[]) {
   }
   await db.query('DELETE FROM project_assignments WHERE project_id=$1', [projectId]);
   for (const uid of unique) await db.query('INSERT INTO project_assignments(project_id,user_id) VALUES($1,$2)', [projectId, uid]);
+}
+async function validatePermits(db:Queryable,projectId:number,permits:z.infer<typeof v.permitInput>[]) {
+  for(const permit of permits){
+    must(!permit.issuedDate || !permit.expiryDate || permit.expiryDate>=permit.issuedDate,'Permit expiry cannot precede its issue date.');
+    if(permit.attachment)must((await db.query('SELECT id FROM content_assets WHERE id=$1 AND project_id=$2',[Number(permit.attachment.split('/').pop()),projectId])).rows.length,'Upload the permit attachment for this project first.');
+  }
 }
 export function createHandler(injected?: Database, storage = { put, get, del }) {
   return async (req: VercelRequest, res: VercelResponse) => {
@@ -53,6 +60,7 @@ export function createHandler(injected?: Database, storage = { put, get, del }) 
         const { password_hash: _, ...user } = row;
         return res.json({ user });
       }
+      if (await contentRoute(db,req,res,path)) return;
       const user = await authenticate(db, req);
       if (path === 'me' && method === 'GET') return res.json({ user });
       if (path === 'logout' && method === 'POST') {
@@ -104,6 +112,8 @@ export function createHandler(injected?: Database, storage = { put, get, del }) 
           const result = await transaction(db, async tx => {
             const { rows } = await tx.query(`INSERT INTO projects(name,client,location,start_date,end_date,budget,status,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, [input.name,input.client,input.location,input.startDate,input.endDate,input.budget,input.status,user.id]);
             const pid = rows[0].id;
+            await validatePermits(tx,pid,input.permits??[]);
+            await tx.query('UPDATE projects SET category=$2,color=$3,permits=$4 WHERE id=$1',[pid,input.category ?? 'General',input.color ?? null,JSON.stringify(input.permits ?? [])]);
             await tx.query('INSERT INTO sites(project_id,name,address) VALUES($1,$2,$3)', [pid,input.siteName,input.siteAddress]);
             await assignments(tx,pid,[user.id,...(input.assignedUserIds ?? [])]);
             return (await tx.query(`SELECT ${q.projectColumns} FROM projects p WHERE id=$1`, [pid])).rows[0];
@@ -127,6 +137,8 @@ export function createHandler(injected?: Database, storage = { put, get, del }) 
               const p = { ...old,...input };
               must(!p.endDate || p.endDate >= p.startDate, 'End date cannot precede start date.');
               await tx.query('UPDATE projects SET name=$2,client=$3,location=$4,start_date=$5,end_date=$6,budget=$7,status=$8 WHERE id=$1', [rowId,p.name,p.client,p.location,p.startDate,p.endDate,p.budget,p.status]);
+              await validatePermits(tx,rowId,p.permits);
+              await tx.query('UPDATE projects SET category=$2,color=$3,permits=$4 WHERE id=$1',[rowId,p.category,p.color,JSON.stringify(p.permits)]);
               if (input.assignedUserIds) await assignments(tx,rowId,input.assignedUserIds);
               return (await tx.query(`SELECT ${q.projectColumns} FROM projects p WHERE id=$1`, [rowId])).rows[0];
             });
@@ -182,11 +194,16 @@ export function createHandler(injected?: Database, storage = { put, get, del }) 
         if (method === 'POST' && parts.length === 1) {
           const r = v.reportInput.parse(req.body);
           const reportId = await transaction(db,async tx => {
-            await projectAccess(tx,user,r.projectId,true);
+            await projectAccess(tx,user,r.projectId,!r.correctionReason);
+            if (r.correctionReason) roles(user,'admin');
+            await tx.query('SELECT id FROM projects WHERE id=$1 FOR UPDATE',[r.projectId]);
+            const previous = (await tx.query('SELECT percent_complete FROM progress_reports WHERE project_id=$1 ORDER BY id DESC LIMIT 1',[r.projectId])).rows[0];
+            must(!!r.correctionReason || r.percentComplete >= (previous?.percent_complete ?? 0),'Progress cannot decrease. An admin correction with a reason is required.');
             must((await tx.query('SELECT id FROM sites WHERE id=$1 AND project_id=$2',[r.siteId,r.projectId])).rows.length,'Site does not belong to this project.');
             if (r.photoDataUrl) must((await tx.query('SELECT id FROM photo_uploads WHERE blob_url=$1 AND project_id=$2 AND site_id=$3 AND uploaded_by=$4',[r.photoDataUrl,r.projectId,r.siteId,user.id])).rows.length,'Upload this photo for the selected site first.');
             const { rows } = await tx.query('INSERT INTO progress_reports(project_id,site_id,submitted_by,report_date,description,percent_complete,photo_url) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id',[r.projectId,r.siteId,user.id,r.reportDate,r.description,r.percentComplete,r.photoDataUrl]);
             const rid = rows[0].id;
+            if(r.correctionReason) await tx.query('UPDATE progress_reports SET correction_reason=$2 WHERE id=$1',[rid,r.correctionReason]);
             for (const m of r.materials) await tx.query('INSERT INTO materials_log(report_id,project_id,material_name,quantity,unit) VALUES($1,$2,$3,$4,$5)',[rid,r.projectId,m.materialName,m.quantity,m.unit]);
             for (const m of r.manpower) await tx.query('INSERT INTO manpower_log(report_id,project_id,worker_name,position,hours_worked) VALUES($1,$2,$3,$4,$5)',[rid,r.projectId,m.workerName,m.position,m.hoursWorked]);
             await tx.query("INSERT INTO notifications(message,type,ref_type,ref_id) VALUES($1,'info','project',$2)",[`New progress report submitted by ${user.name}.`,r.projectId]);

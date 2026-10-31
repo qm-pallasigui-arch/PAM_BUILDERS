@@ -1,3 +1,5 @@
+import { CompletionControl } from "./CompletionControl";
+import { latestProgress } from "../../portal/utils";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Plus, Trash2 } from "lucide-react";
@@ -16,8 +18,8 @@ export function ReportSubmit() {
   const { id } = useParams();
   const projectId = Number(id);
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { projects, sites, addReport } = usePortalData();
+  const { user,hasRole } = useAuth();
+  const { projects, sites, reports, addReport } = usePortalData();
 
   const project = projects.find((p) => p.id === projectId);
   const projectSites = sites.filter((s) => s.projectId === projectId);
@@ -25,7 +27,12 @@ export function ReportSubmit() {
   const [siteId, setSiteId] = useState(projectSites[0]?.id ?? 0);
   const [reportDate, setReportDate] = useState(new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
-  const [percentComplete, setPercentComplete] = useState(0);
+  const baseline=latestProgress(projectId,reports);
+  const previous=[...reports].filter(r=>r.projectId===projectId).sort((a,b)=>b.id-a.id)[0];
+  const [percentComplete, setPercentComplete] = useState(baseline);
+  const [correction,setCorrection]=useState(hasRole('admin')&&!project?.assignedUserIds?.includes(user?.id??0)),[reason,setReason]=useState('');
+  useEffect(()=>{setPercentComplete(baseline);},[baseline,projectId]);
+  useEffect(()=>{setSiteId(projectSites[0]?.id??0);},[projectId,projectSites[0]?.id]);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -61,13 +68,16 @@ export function ReportSubmit() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !siteId) return;
+    if (!user || !siteId) {toast.error("Select a site before submitting.");return;}
+    if(!correction && percentComplete<baseline){toast.error("Progress cannot decrease.");return;}
+    if(correction&&!reason.trim()){toast.error("Enter a correction reason.");return;}
 
     if (submitting) return;
     setSubmitting(true);
     try {
     const photoUrl = photoFile ? await uploadPhoto(photoFile, projectId, siteId) : null;
     await addReport({
+      ...(correction?{correctionReason:reason.trim()}:{}),
       projectId,
       siteId,
       submittedBy: user.id,
@@ -88,11 +98,15 @@ export function ReportSubmit() {
 
   return (
     <div className="max-w-2xl space-y-6">
+      <Button variant="outline" onClick={()=>navigate(`/portal/projects/${projectId}`)}>Back to project</Button>
       <div>
         <h1 className="text-2xl font-semibold leading-8 tracking-tight text-gray-900">Submit Daily Progress Report</h1>
         <p className="text-gray-500 text-sm mt-1">{project.name}</p>
       </div>
 
+      {previous&&<Button variant="outline" onClick={()=>{setDescription(previous.description);setMaterials(previous.materials.map(m=>({...m})));setManpower(previous.manpower.map(m=>({...m})));toast.success('Previous report copied. Review quantities and hours before submitting.');}}>Copy previous report</Button>}
+      <p className="text-sm text-gray-500">Current project progress: {baseline}%. Each submission adds to this project's report history.</p>
+      {hasRole('admin')&&<div className="rounded border p-4 space-y-3"><label className="flex gap-2"><input type="checkbox" checked={correction} onChange={e=>{setCorrection(e.target.checked);if(!e.target.checked)setPercentComplete(baseline);}}/>Admin progress correction</label>{correction&&<label className="block">Required correction reason<Textarea value={reason} onChange={e=>setReason(e.target.value)}/></label>}</div>}
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader><CardTitle className="text-base">Report Details</CardTitle></CardHeader>
@@ -122,21 +136,11 @@ export function ReportSubmit() {
               <Textarea id="desc" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} required />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="percent">Overall project completion (%)</Label>
-              <Input
-                id="percent"
-                type="number"
-                min={0}
-                max={100}
-                value={percentComplete}
-                onChange={(e) => setPercentComplete(Math.min(100, Math.max(0, Number(e.target.value))))}
-              />
-            </div>
+            <CompletionControl value={percentComplete} saved={baseline} correction={correction} disabled={submitting} onChange={setPercentComplete}/>
 
             <div className="space-y-1.5">
               <Label htmlFor="photo">Site photo</Label>
-              <Input id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhoto} />
+              <Input disabled={!project.assignedUserIds?.includes(user?.id??0)} id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhoto} />
               {photoDataUrl && (
                 <img src={photoDataUrl} alt="Site preview" className="mt-2 h-32 rounded-md border object-cover" />
               )}

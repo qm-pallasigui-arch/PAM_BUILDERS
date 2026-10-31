@@ -28,7 +28,7 @@ export function formatCurrency(amount: number): string {
 export function latestProgress(projectId: number, reports: ProgressReport[]): number {
   const projectReports = reports
     .filter((r) => r.projectId === projectId)
-    .sort((a, b) => b.reportDate.localeCompare(a.reportDate));
+    .sort((a, b) => b.id - a.id);
   return projectReports[0]?.percentComplete ?? 0;
 }
 

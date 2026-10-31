@@ -1,3 +1,5 @@
+import { ProjectAppearance } from './ProjectAppearance';
+import { useWebsiteContent,projectColor } from '../../portal/content';
 import { toast } from "sonner";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -20,6 +22,8 @@ import { Label } from "../../components/ui/label";
 import { latestProgress, projectStatusLabel, formatCurrency } from "../../portal/utils";
 
 export function ProjectsList() {
+  const {content}=useWebsiteContent();
+  const [appearance,setAppearance]=useState<{category:string;color:string|null}>({category:'General',color:null});
   const { hasRole } = useAuth();
   const { projects, reports, addProject } = usePortalData();
   const [submitting, setSubmitting] = useState(false);
@@ -29,6 +33,7 @@ export function ProjectsList() {
     client: "",
     location: "",
     startDate: "",
+    endDate: "",
     budget: "",
     siteName: "Main Site",
     siteAddress: "",
@@ -43,18 +48,19 @@ export function ProjectsList() {
     try {
     await addProject(
       {
+        ...appearance,
         name: form.name,
         client: form.client,
         location: form.location,
         startDate: form.startDate,
-        endDate: null,
+        endDate: form.endDate || null,
         budget: Number(form.budget) || 0,
         status: "ongoing",
       },
       form.siteName || "Main Site",
       form.siteAddress || form.location
     );
-    setForm({ name: "", client: "", location: "", startDate: "", budget: "", siteName: "Main Site", siteAddress: "" });
+    setForm({ name: "", client: "", location: "", startDate: "", endDate: "", budget: "", siteName: "Main Site", siteAddress: "" });
     setOpen(false);
     } catch (error) { toast.error((error as Error).message); }
     finally { setSubmitting(false); }
@@ -74,7 +80,7 @@ export function ProjectsList() {
                 <Plus className="h-4 w-4" /> New Project
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[85dvh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>New Project</DialogTitle>
               </DialogHeader>
@@ -97,7 +103,7 @@ export function ProjectsList() {
                     <Input id="p-start" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="p-budget">Budget (₱)</Label>
+                    <Label htmlFor="p-budget">Budget (â‚±)</Label>
                     <Input id="p-budget" type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} />
                   </div>
                 </div>
@@ -106,6 +112,8 @@ export function ProjectsList() {
                   <Input id="p-site-address" value={form.siteAddress} onChange={(e) => setForm({ ...form, siteAddress: e.target.value })} />
                 </div>
               </div>
+              <label className="block">Target completion date<Input type="date" min={form.startDate} value={form.endDate} onChange={e=>setForm({...form,endDate:e.target.value})}/></label>
+              <ProjectAppearance {...appearance} onChange={patch=>setAppearance(a=>({...a,...patch}))}/>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
                 <Button className="bg-orange-600 hover:bg-orange-700" disabled={submitting} onClick={handleCreate}>Create project</Button>
@@ -118,7 +126,7 @@ export function ProjectsList() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {projects.map((p) => (
           <Link key={p.id} to={`/portal/projects/${p.id}`}>
-            <Card className="h-full hover:border-orange-300 transition-colors">
+            <Card className="h-full hover:shadow-md transition-shadow" style={{borderTop:`5px solid ${projectColor(p,content)}`}}>
               <CardContent className="pt-6 space-y-2">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <h3 className="font-semibold text-gray-900">{p.name}</h3>
@@ -126,8 +134,8 @@ export function ProjectsList() {
                     {projectStatusLabel(p.status)}
                   </Badge>
                 </div>
-                <p className="text-sm text-gray-500">{p.client} · {p.location}</p>
-                <p className="text-sm text-gray-500">Budget: {formatCurrency(p.budget)}</p>
+                <p className="text-xs text-gray-500">{p.category??'General'}</p>
+                <dl className="grid grid-cols-2 gap-3 py-3"><div className="col-span-2"><dt className="text-xs text-gray-500">Budget</dt><dd className="text-xl font-semibold">{formatCurrency(p.budget)}</dd></div><div><dt className="text-xs text-gray-500">Client</dt><dd className="font-medium break-words">{p.client||'Not set'}</dd></div><div><dt className="text-xs text-gray-500">Location</dt><dd className="font-medium break-words">{p.location||'Not set'}</dd></div></dl>
                 <div className="pt-2">
                   <div className="flex justify-between text-xs text-gray-500 mb-1">
                     <span>Progress</span>
