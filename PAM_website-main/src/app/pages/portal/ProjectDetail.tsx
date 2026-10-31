@@ -1,3 +1,4 @@
+import { ProjectPermits } from "./ProjectPermits";
 import { ProjectControls } from "./ProjectControls";
 import { Link, useParams } from "react-router";
 import { Plus } from "lucide-react";
@@ -18,7 +19,7 @@ export function ProjectDetail() {
   const { id } = useParams();
   const projectId = Number(id);
   const { projects, sites, milestones, reports } = usePortalData();
-  const { user } = useAuth();
+  const { user,hasRole } = useAuth();
 
   const project = projects.find((p) => p.id === projectId);
   const projectSites = sites.filter((s) => s.projectId === projectId);
@@ -27,7 +28,7 @@ export function ProjectDetail() {
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   const projectReports = reports
     .filter((r) => r.projectId === projectId)
-    .sort((a, b) => b.reportDate.localeCompare(a.reportDate));
+    .sort((a, b) => b.id-a.id);
 
   if (!project) {
     return <p className="text-gray-500">Project not found.</p>;
@@ -35,6 +36,7 @@ export function ProjectDetail() {
 
   return (
     <div className="space-y-6">
+      <Button asChild variant="outline"><Link to="/portal/projects">Back to Projects</Link></Button>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold leading-8 tracking-tight text-gray-900">{project.name}</h1>
@@ -53,7 +55,7 @@ export function ProjectDetail() {
       </div>
 
       <div className="flex flex-wrap items-center justify-start gap-3">
-        {user && project.assignedUserIds?.includes(user.id) && (
+        {user && (hasRole("admin") || project.assignedUserIds?.includes(user.id)) && (
           <Button asChild>
             <Link to={`/portal/projects/${project.id}/submit-report`}>
               <Plus className="h-4 w-4" /> Submit Daily Progress Report
@@ -63,6 +65,8 @@ export function ProjectDetail() {
         <ProjectControls project={project} />
       </div>
 
+      <section className="grid gap-4 sm:grid-cols-2"><Card><CardContent className="pt-6"><p className="text-gray-500">Target completion date</p><p className="font-semibold">{project.endDate?formatDate(project.endDate):'Not set'}</p></CardContent></Card><Card><CardContent className="pt-6"><p className="text-gray-500">Assigned personnel</p><p className="font-semibold">{project.assignedNames?.join(', ')||'No assigned personnel'}</p></CardContent></Card></section>
+      <ProjectPermits project={project}/>
       <Card>
         <CardHeader><CardTitle className="text-base">Milestones</CardTitle></CardHeader>
         <CardContent className="space-y-2">
@@ -98,6 +102,7 @@ export function ProjectDetail() {
                 <Badge variant="active">{r.percentComplete}% complete</Badge>
               </div>
               <p className="text-sm text-gray-600 mt-1">{r.description}</p>
+              {r.correctionReason&&<p className="mt-2 rounded bg-amber-50 p-2 text-amber-900">Admin correction: {r.correctionReason}</p>}
               {r.photoDataUrl && <a href={r.photoDataUrl} target="_blank" rel="noreferrer"><img src={r.photoDataUrl} alt="Site progress" loading="lazy" className="mt-3 h-32 rounded-md border object-cover" /></a>}
                 {(r.materials.length > 0 || r.manpower.length > 0) && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -105,7 +110,7 @@ export function ProjectDetail() {
                     <Badge key={`mat-${i}`} variant="outline">{m.materialName}: {m.quantity} {m.unit}</Badge>
                   ))}
                   {r.manpower.map((m, i) => (
-                    <Badge key={`man-${i}`} variant="outline">{m.workerName} ({m.position})</Badge>
+                    <Badge key={`man-${i}`} variant="outline">{m.workerName} ({m.position}) - {m.hoursWorked} hours</Badge>
                   ))}
                 </div>
               )}

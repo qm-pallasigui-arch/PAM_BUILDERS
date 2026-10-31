@@ -1,6 +1,8 @@
 import { DEMO_USERS, DEMO_PROJECTS, DEMO_SITES, DEMO_MILESTONES, DEMO_REPORTS, DEMO_NOTIFICATIONS } from './mockData';
 import type { PortalUser, Project, Site, Milestone, ProgressReport } from './types';
-import { isMilestoneDelayed } from './utils';
+import { isMilestoneDelayed,latestProgress } from './utils';
+import type { WebsiteContent } from './content';
+import initialContent from './initialContent.json';
 
 // An isolated, in-memory demo. Reloading resets all data and the current login.
 export function createDemoApi() {
@@ -12,6 +14,8 @@ export function createDemoApi() {
   const notifications = structuredClone(DEMO_NOTIFICATIONS);
   const reads = new Set<string>();
   let userId: number | null = null;
+  let content:WebsiteContent=structuredClone(initialContent) as WebsiteContent;
+  const assets:{id:number;url:string;projectId?:number}[]=[];
   const profile = ({password: _, ...user}: typeof users[number]): PortalUser => user;
   const nextId = (rows: {id:number}[]) => Math.max(0,...rows.map(row => row.id)) + 1;
   const page = (items: unknown[]) => ({items: structuredClone(items), nextCursor: null});
@@ -26,8 +30,12 @@ export function createDemoApi() {
       userId = found.id;
       return {user: profile(found)};
     }
+    if(resource==='public-content'&&method==='GET')return {...content,permitTemplates:[],projects:content.projects.filter(p=>p.published).map(p=>{const {linkedProjectId,showClient,showBudget,showLocation,...safe}=p;const internal=projects.find(x=>x.id===linkedProjectId);return {...safe,...(internal&&showClient?{client:internal.client}:{}),...(internal&&showBudget?{budget:internal.budget}:{}),...(internal&&showLocation?{location:internal.location}:{})};})};
     const user = users.find(u => u.id === userId && u.status === 'active');
     if (!user) throw new Error('Please sign in.');
+    if(resource==='permit-templates'&&method==='GET')return structuredClone(content.permitTemplates);
+    if(resource==='content'){if(user.role!=='admin')throw new Error('Admin access required.');if(method==='PUT')content=structuredClone(input) as WebsiteContent;return structuredClone(content);}
+    if(resource==='assets'&&method==='POST'){if(user.role==='site_staff'||(!input.projectId&&user.role!=='admin'))throw new Error('Admin or manager access required.');const url=`data:${input.contentType};base64,${input.data}`;assets.push({id:nextId(assets),url,projectId:input.projectId});return {url};}
     if (resource === 'me') return {user: profile(user)};
     if (resource === 'logout') { userId = null; return {ok:true}; }
     const manager = user.role !== 'site_staff';
@@ -39,7 +47,7 @@ export function createDemoApi() {
 
     if (method === 'GET') {
       switch(resource) {
-        case 'projects': return {...page(allowed),sites:structuredClone(sites.filter(s => canView(s.projectId)))};
+        case 'projects': return {...page(allowed.map(p=>({...p,assignedNames:users.filter(u=>p.assignedUserIds?.includes(u.id)).map(u=>u.name)}))),sites:structuredClone(sites.filter(s => canView(s.projectId)))};
         case 'milestones': return page(milestones.filter(m => canView(m.projectId)));
         case 'reports': return page(reports.filter(r => canView(r.projectId)));
         case 'users': return page(users.map(profile));
@@ -48,8 +56,10 @@ export function createDemoApi() {
     }
     if (resource === 'reports' && method === 'POST') {
       const project = projects.find(p => p.id === input.projectId);
-      if (!project?.assignedUserIds?.includes(user.id)) throw new Error('You must be assigned to this project.');
+      if (!project || (!project.assignedUserIds?.includes(user.id) && !(input.correctionReason&&user.role==='admin'))) throw new Error('You must be assigned to this project.');
       if (input.siteId !== null && !sites.some(s => s.id === input.siteId && s.projectId === project.id)) throw new Error('Select a site in this project.');
+      if(input.correctionReason&&user.role!=='admin')throw new Error('Admin access required.');
+      if(!input.correctionReason&&input.percentComplete<latestProgress(project.id,reports))throw new Error('Progress cannot decrease. An admin correction with a reason is required.');
       reports.unshift({...input,id:nextId(reports),submittedBy:user.id,submittedByName:user.name} as ProgressReport);
       return {ok:true};
     }

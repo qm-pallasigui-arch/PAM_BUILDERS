@@ -6,10 +6,11 @@ export const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v => !Number.
 export const password = z.string().min(12).refine(v => Buffer.byteLength(v) <= 72, 'Password must be at most 72 UTF-8 bytes');
 export const loginInput = z.object({ email: z.string().trim().toLowerCase().email().max(150), password: z.string().min(1).max(72) });
 export const userInput = z.object({ name: required(150), email: z.string().trim().toLowerCase().email().max(150), password, role: z.enum(['admin','project_manager','site_staff']), status: z.enum(['active','inactive']) });
-export const projectInput = z.object({ name: required(200), client: text(200), location: text(200), startDate: date, endDate: date.nullable(), budget: z.number().min(0).max(999999999999.99), status: z.enum(['ongoing','on_hold','completed']) });
+export const permitInput = z.object({name:required(200),status:z.enum(['pending','submitted','approved','expired']),reference:text(200),issuedDate:z.union([date,z.literal('')]),expiryDate:z.union([date,z.literal('')]),attachment:z.string().regex(/^$|^\/api\/portal\/assets\/\d+$/)});
+export const projectInput = z.object({ category: text(100).optional(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(), permits:z.array(permitInput).max(200).optional(), name: required(200), client: text(200), location: text(200), startDate: date, endDate: date.nullable(), budget: z.number().min(0).max(999999999999.99), status: z.enum(['ongoing','on_hold','completed']) });
 export const siteInput = z.object({ name: required(200), address: text(255).default('') });
 export const milestoneInput = z.object({ projectId: id, title: required(200), description: text(10000), dueDate: date, status: z.enum(['pending','in_progress','completed']) });
-export const reportInput = z.object({ projectId: id, siteId: id, reportDate: date, description: required(10000), percentComplete: z.number().int().min(0).max(100), photoDataUrl: z.string().max(500).nullable().default(null),
+export const reportInput = z.object({ correctionReason: required(2000).optional(), projectId: id, siteId: id, reportDate: date, description: required(10000), percentComplete: z.number().int().min(0).max(100), photoDataUrl: z.string().max(500).nullable().default(null),
   materials: z.array(z.object({ materialName: required(150), quantity: z.number().min(0).max(9999999999.99), unit: text(30) })).max(100),
   manpower: z.array(z.object({ workerName: required(150), position: text(100), hoursWorked: z.number().min(0).max(24) })).max(100) });
 export const photoInput = z.object({ projectId: id, siteId: id, data: z.string().max(4200000), contentType: z.enum(['image/jpeg','image/png','image/webp']) });

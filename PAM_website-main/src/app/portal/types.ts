@@ -23,6 +23,10 @@ export interface Project {
   endDate: string | null; // ISO date
   budget: number;
   status: ProjectStatus;
+  category?: string;
+  color?: string | null;
+  permits?: Permit[];
+  assignedNames?: string[];
   siteIds: number[];
   assignedUserIds?: number[]; // project_assignments: assignment grants report submission at all project sites
 }
@@ -58,7 +62,10 @@ export interface ManpowerLogEntry {
   hoursWorked: number;
 }
 
+export interface Permit { name: string; status: "pending" | "submitted" | "approved" | "expired"; reference: string; issuedDate: string; expiryDate: string; attachment: string }
+
 export interface ProgressReport {
+  correctionReason?: string | null;
   id: number;
   projectId: number;
   siteId: number | null;

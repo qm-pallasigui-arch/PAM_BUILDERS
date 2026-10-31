@@ -46,9 +46,9 @@ export function PortalLogin() {
             <CardDescription>Internal use only — PAM Builders staff and engineers.</CardDescription>
           </CardHeader>
           <CardContent>
-            {import.meta.env.DEV && import.meta.env.MODE === 'demo' && (
+            {import.meta.env.MODE === 'demo' && (
               <div className="mb-4 rounded-md bg-amber-50 p-3 text-sm text-amber-950">
-                <p className="font-semibold">Local demo — no database needed</p>
+                <p className="font-semibold">Demo mode — no database needed</p>
                 <p className="mt-1">Sample data and changes reset when you reload. Use demo details only.</p>
                 <p className="mt-2">Admin: admin@pambuilders.com / admin123</p>
                 <p>Project Manager: pm@pambuilders.com / pm123</p>

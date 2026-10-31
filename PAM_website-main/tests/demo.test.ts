@@ -31,3 +31,12 @@ test('demo edits survive navigation, new accounts can log in, and a fresh instan
   assert.notEqual((fresh('projects') as any).items[0].name,'Demo edit');
   assert.equal((fresh('users') as any).items.length,3);
 });
+
+
+test('demo About and Contact edits appear on the public pages without creating new project records',()=>{
+ const api=createDemoApi();api('login','POST',{email:'admin@pambuilders.com',password:'admin123'});
+ const content=api('content') as any;const projectCount=(api('projects') as any).items.length;
+ content.leadership.push({id:'new',name:'New Leader',role:'Director',experience:'',image:''});
+ content.contact.cards[0].lines=['+63 912 345 6789'];api('content','PUT',content);
+ const published=api('public-content') as any;assert.equal(published.leadership.at(-1).name,'New Leader');assert.equal(published.contact.cards[0].lines[0],'+63 912 345 6789');assert.equal((api('projects') as any).items.length,projectCount);
+});

@@ -180,7 +180,89 @@ test('upgrade migration applies to the original schema and matches fresh install
     const schema = await readFile(new URL('../db/schema.sql',import.meta.url),'utf8');
     await upgrade.exec(schema.split('-- Apply after the original portal schema')[0]);
     await upgrade.exec(await readFile(new URL('../db/migrations/002_portal_backend.sql',import.meta.url),'utf8'));
+    await upgrade.exec(await readFile(new URL('../db/migrations/003_project_management.sql',import.meta.url),'utf8'));
     const columns = "SELECT table_name,column_name,data_type FROM information_schema.columns WHERE table_schema='public' ORDER BY table_name,ordinal_position";
     assert.deepEqual((await upgrade.query(columns)).rows,(await pg.query(columns)).rows);
   } finally {await upgrade.close();}
+});
+
+
+test('editing and reporting preserve project identity and enforce progress floors with audited corrections',async()=>{
+ const created=await request('projects','POST',{name:'Identity regression',client:'Retained client',location:'Cebu',startDate:'2026-01-01',endDate:null,budget:1500,status:'ongoing',siteName:'Main',siteAddress:'Cebu',category:'Commercial',color:'#123456',assignedUserIds:[3]},cookies[1]);
+ assert.equal(created.status,201);const project=created.body;
+ const before=(await request('projects','GET',{},cookies[1])).body.items.length;
+ const updated=await request(`projects/${project.id}`,'PUT',{name:'Edited name',endDate:'2027-01-01'},cookies[1]);
+ assert.equal(updated.body.id,project.id);assert.equal(updated.body.client,'Retained client');assert.equal(updated.body.budget,1500);assert.equal(updated.body.color,'#123456');
+ const input={...report,projectId:project.id,siteId:project.siteIds[0],percentComplete:50};
+ assert.equal((await request('reports','POST',input,cookies[3])).status,201);
+ assert.equal((await request('reports','POST',{...input,percentComplete:40},cookies[3])).status,400);
+ assert.equal((await request('reports','POST',{...input,percentComplete:60},cookies[3])).status,201);
+ assert.equal((await request('reports','POST',{...input,correctionReason:' '},cookies[1])).status,400);
+ assert.equal((await request('reports','POST',{...input,correctionReason:'Wrong measurement'},cookies[3])).status,403);
+ const correction=await request('reports','POST',{...input,percentComplete:45,correctionReason:'Verified measurement correction'},cookies[1]);
+ assert.equal(correction.status,201);assert.equal(correction.body.correctionReason,'Verified measurement correction');assert.equal(correction.body.submittedBy,1);
+ assert.equal((await request('reports','POST',{...input,percentComplete:44},cookies[3])).status,400);
+ assert.equal((await request('reports','POST',{...input,percentComplete:46,reportDate:'2026-01-01'},cookies[3])).status,201);
+ assert.equal((await request('projects','GET',{},cookies[1])).body.items.length,before);
+ const history=(await request(`reports?project_id=${project.id}`,'GET',{},cookies[1])).body.items;
+ assert.equal(history.length,4);
+});
+
+test('website publication filters drafts and private fields and governs file visibility',async()=>{
+ assert.equal((await request('content','GET',{},cookies[3])).status,403);
+ const seeded=(await request('content','GET',{},cookies[1])).body;assert.equal(seeded.projects.length,9);
+ assert.equal((await request('content','PUT',seeded,cookies[1])).status,200);
+ assert.equal((await request('public-content')).body.projects.length,9);
+ const upload=await request('assets','POST',{name:'cover.png',contentType:'image/png',data:blobBytes.toString('base64')},cookies[1]);assert.equal(upload.status,201);
+ const assetPath=upload.body.url.replace('/api/portal/','');
+ assert.equal((await request(assetPath)).status,401);
+ const project={id:'public-one',title:'Portfolio',description:'Public description',image:upload.body.url,category:'General',color:null,order:0,published:false,linkedProjectId:1,showClient:false,showBudget:false,showLocation:false};
+ const content={projects:[project],categories:[{name:'General',color:'#ea580c'}],permitTemplates:['Building permit'],birUrl:''};
+ assert.equal((await request('content','PUT',content,cookies[1])).status,200);
+ assert.equal((await request('public-content')).body.projects.length,0);
+ project.published=true;project.showLocation=true;
+ assert.equal((await request('content','PUT',content,cookies[1])).status,200);
+ const publicProject=(await request('public-content')).body.projects[0];
+ assert.ok(publicProject.location);assert.equal(publicProject.budget,undefined);assert.equal(publicProject.client,undefined);assert.equal(publicProject.linkedProjectId,undefined);
+ assert.equal((await request(assetPath)).status,200);
+ project.published=false;
+ assert.equal((await request('content','PUT',content,cookies[1])).status,200);
+ assert.equal((await request(assetPath)).status,401);
+ assert.deepEqual((await request('permit-templates','GET',{},cookies[3])).body,['Building permit']);
+ assert.equal((await request('content','PUT',{...content,projects:[]},cookies[1])).status,200);
+ assert.equal((await request('content','GET',{},cookies[1])).body.projects.length,0);
+});
+
+test('permits retain status and attachments on project edits and reject another project file',async()=>{
+ const uploaded=await request('assets','POST',{name:'permit.pdf',contentType:'application/pdf',data:Buffer.from('%PDF-1.7 test').toString('base64'),projectId:1},cookies[1]);assert.equal(uploaded.status,201);
+ const permit={name:'Building permit',status:'approved',reference:'BP-1',issuedDate:'2026-01-01',expiryDate:'2027-01-01',attachment:uploaded.body.url};
+ assert.equal((await request('projects/1','PUT',{permits:[permit]},cookies[1])).status,200);
+ const edited=await request('projects/1','PUT',{category:'Residential',color:null},cookies[1]);assert.deepEqual(edited.body.permits,[permit]);
+ assert.equal((await request('projects/2','PUT',{permits:[permit]},cookies[1])).status,400);
+ const path=uploaded.body.url.replace('/api/portal/','');
+ const unassignedLogin=await request('login','POST',{email:'new@example.com',password:'safe-test-password-123'});
+ const unassignedCookie=unassignedLogin.headers['set-cookie'].split(';')[0];
+ assert.equal((await request(path)).status,401);assert.equal((await request(path,'GET',{},unassignedCookie)).status,404);assert.equal((await request(path,'GET',{},cookies[3])).status,200);
+ assert.equal((await request('projects/1','PUT',{permits:[{...permit,expiryDate:'2025-01-01'}]},cookies[1])).status,400);
+});
+
+
+test('About and Contact content supports ordered cards and publishes only saved leadership photos',async()=>{
+ const old=(await request('content','GET',{},cookies[1])).body;
+ assert.equal(old.leadership[0].name,'Ronald M. Milana');assert.equal(old.contact.cards[0].kind,'phone');
+ const upload=await request('assets','POST',{name:'leader.png',contentType:'image/png',data:blobBytes.toString('base64')},cookies[1]);
+ assert.equal(upload.status,201);
+ const path=upload.body.url.replace('/api/portal/','');assert.equal((await request(path)).status,401);
+ const leadership=[{id:'new-leader',name:'New Leader',role:'Director',experience:'10 years',image:upload.body.url},...old.leadership];
+ const contact={...old.contact,title:'Talk to PAM',cards:[{id:'new-email',kind:'email',title:'Project inquiries',lines:['projects@example.com'],note:'Contact our project team'}],emergency:{...old.contact.emergency,enabled:false}};
+ assert.equal((await request('content','PUT',{leadership,contact},cookies[3])).status,403);
+ assert.equal((await request('content','PUT',{leadership,contact},cookies[1])).status,200);
+ let published=(await request('public-content')).body;
+ assert.deepEqual(published.leadership,leadership);assert.deepEqual(published.contact,contact);assert.equal((await request(path)).status,200);
+ assert.equal((await request('content','PUT',{contact:{...contact,cards:[{...contact.cards[0],lines:['javascript:alert(1)']}]}},cookies[1])).status,400);
+ const changed=[{...leadership[1],role:'Founder'},leadership[0]];
+ assert.equal((await request('content','PUT',{leadership:changed},cookies[1])).status,200);
+ published=(await request('public-content')).body;assert.equal(published.leadership[0].role,'Founder');assert.equal(published.contact.title,'Talk to PAM');
+ assert.equal((await request('content','PUT',{leadership:[],contact:{...contact,cards:[]}},cookies[1])).status,200);
+ published=(await request('public-content')).body;assert.deepEqual(published.leadership,[]);assert.deepEqual(published.contact.cards,[]);assert.equal((await request(path)).status,401);
 });

@@ -1,0 +1,271 @@
+{
+  "projects": [
+    {
+      "id": "portfolio-1",
+      "title": "Riverside Luxury Home",
+      "description": "Custom 5,000 sq ft modern home with panoramic river views, featuring sustainable materials and smart home technology.",
+      "image": "https://images.unsplash.com/photo-1622015663319-e97e697503ee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBob21lJTIwZXh0ZXJpb3IlMjBhcmNoaXRlY3R1cmV8ZW58MXx8fHwxNzc1Mzg2MTM1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "category": "Residential",
+      "details": {
+        "year": "2025",
+        "duration": "12 months",
+        "size": "5,000 sq ft"
+      },
+      "color": null,
+      "order": 0,
+      "published": true,
+      "linkedProjectId": null,
+      "showClient": false,
+      "showBudget": false,
+      "showLocation": false
+    },
+    {
+      "id": "portfolio-2",
+      "title": "Downtown Tech Office",
+      "description": "Modern 10,000 sq ft office space with open floor plan, collaborative areas, and state-of-the-art facilities.",
+      "image": "https://images.unsplash.com/photo-1703355685639-d558d1b0f63e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBvZmZpY2UlMjBpbnRlcmlvciUyMHdvcmtzcGFjZXxlbnwxfHx8fDE3NzUzMDM0NTl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "category": "Commercial",
+      "details": {
+        "year": "2025",
+        "duration": "8 months",
+        "size": "10,000 sq ft"
+      },
+      "color": null,
+      "order": 1,
+      "published": true,
+      "linkedProjectId": null,
+      "showClient": false,
+      "showBudget": false,
+      "showLocation": false
+    },
+    {
+      "id": "portfolio-3",
+      "title": "Gourmet Kitchen Remodel",
+      "description": "Complete kitchen transformation featuring custom cabinetry, quartz countertops, and professional-grade appliances.",
+      "image": "https://images.unsplash.com/photo-1772567732969-c1506edf80a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxraXRjaGVuJTIwcmVtb2RlbCUyMG1vZGVybnxlbnwxfHx8fDE3NzUzODYwMzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "category": "Renovation",
+      "details": {
+        "year": "2026",
+        "duration": "3 months",
+        "size": "450 sq ft"
+      },
+      "color": null,
+      "order": 2,
+      "published": true,
+      "linkedProjectId": null,
+      "showClient": false,
+      "showBudget": false,
+      "showLocation": false
+    },
+    {
+      "id": "portfolio-4",
+      "title": "Spa-Inspired Bathroom",
+      "description": "Luxurious bathroom renovation with heated floors, rainfall shower, soaking tub, and custom tile work.",
+      "image": "https://images.unsplash.com/photo-1758448018619-4cbe2250b9ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiYXRocm9vbSUyMHJlbm92YXRpb24lMjBsdXh1cnl8ZW58MXx8fHwxNzc1Mzg2MDMzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "category": "Renovation",
+      "details": {
+        "year": "2026",
+        "duration": "2 months",
+        "size": "200 sq ft"
+      },
+      "color": null,
+      "order": 3,
+      "published": true,
+      "linkedProjectId": null,
+      "showClient": false,
+      "showBudget": false,
+      "showLocation": false
+    },
+    {
+      "id": "portfolio-5",
+      "title": "Boutique Retail Store",
+      "description": "High-end retail space with custom millwork, elegant lighting, and optimized customer flow.",
+      "image": "https://images.unsplash.com/photo-1759050486852-fdfe2fdc7bea?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyZXRhaWwlMjBzdG9yZSUyMGludGVyaW9yJTIwZGVzaWdufGVufDF8fHx8MTc3NTM4NjEzNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "category": "Commercial",
+      "details": {
+        "year": "2025",
+        "duration": "4 months",
+        "size": "2,500 sq ft"
+      },
+      "color": null,
+      "order": 4,
+      "published": true,
+      "linkedProjectId": null,
+      "showClient": false,
+      "showBudget": false,
+      "showLocation": false
+    },
+    {
+      "id": "portfolio-6",
+      "title": "Modern Family Residence",
+      "description": "Contemporary 3,800 sq ft home with open concept living, energy-efficient design, and premium finishes.",
+      "image": "https://images.unsplash.com/photo-1773558048595-0eb9c121f119?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyZXNpZGVudGlhbCUyMGhvbWUlMjBleHRlcmlvcnxlbnwxfHx8fDE3NzUzNzU0MjR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "category": "Residential",
+      "details": {
+        "year": "2025",
+        "duration": "10 months",
+        "size": "3,800 sq ft"
+      },
+      "color": null,
+      "order": 5,
+      "published": true,
+      "linkedProjectId": null,
+      "showClient": false,
+      "showBudget": false,
+      "showLocation": false
+    },
+    {
+      "id": "portfolio-7",
+      "title": "Urban Apartment Complex",
+      "description": "Multi-unit residential building with 24 luxury apartments, rooftop terrace, and modern amenities.",
+      "image": "https://images.unsplash.com/photo-1515263487990-61b07816b324?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBhcGFydG1lbnQlMjBidWlsZGluZ3xlbnwxfHx8fDE3NzUzMDI0ODh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "category": "Commercial",
+      "details": {
+        "year": "2024",
+        "duration": "18 months",
+        "size": "45,000 sq ft"
+      },
+      "color": null,
+      "order": 6,
+      "published": true,
+      "linkedProjectId": null,
+      "showClient": false,
+      "showBudget": false,
+      "showLocation": false
+    },
+    {
+      "id": "portfolio-8",
+      "title": "Historic Home Restoration",
+      "description": "Careful restoration of a 1920s craftsman home, preserving original character while modernizing systems.",
+      "image": "https://images.unsplash.com/photo-1770838773417-08b18661c62f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxob21lJTIwcmVub3ZhdGlvbiUyMGludGVyaW9yfGVufDF8fHx8MTc3NTM4MTAxNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "category": "Renovation",
+      "details": {
+        "year": "2025",
+        "duration": "7 months",
+        "size": "2,800 sq ft"
+      },
+      "color": null,
+      "order": 7,
+      "published": true,
+      "linkedProjectId": null,
+      "showClient": false,
+      "showBudget": false,
+      "showLocation": false
+    },
+    {
+      "id": "portfolio-9",
+      "title": "Corporate Headquarters",
+      "description": "Contemporary office building with sustainable design, collaborative workspaces, and wellness areas.",
+      "image": "https://images.unsplash.com/photo-1677324574457-645566fea332?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb21tZXJjaWFsJTIwYnVpbGRpbmclMjBvZmZpY2V8ZW58MXx8fHwxNzc1MzEyNTkyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "category": "Commercial",
+      "details": {
+        "year": "2024",
+        "duration": "14 months",
+        "size": "25,000 sq ft"
+      },
+      "color": null,
+      "order": 8,
+      "published": true,
+      "linkedProjectId": null,
+      "showClient": false,
+      "showBudget": false,
+      "showLocation": false
+    }
+  ],
+  "categories": [
+    {
+      "name": "General",
+      "color": "#ea580c"
+    },
+    {
+      "name": "Residential",
+      "color": "#2563eb"
+    },
+    {
+      "name": "Commercial",
+      "color": "#7c3aed"
+    },
+    {
+      "name": "Renovation",
+      "color": "#059669"
+    }
+  ],
+  "permitTemplates": [],
+  "birUrl": "",
+  "leadership": [
+    {
+      "id": "ronald",
+      "name": "Ronald M. Milana",
+      "role": "Founder & Lead Architect",
+      "experience": "35+ years in construction",
+      "image": ""
+    },
+    {
+      "id": "lyza",
+      "name": "Lyza Punzalan",
+      "role": "Project Manager",
+      "experience": "20+ years in project management",
+      "image": ""
+    }
+  ],
+  "contact": {
+    "title": "Contact Us",
+    "intro": "Ready to start your project? Get in touch with us today for a free consultation and detailed quote.",
+    "formTitle": "Send Us a Message",
+    "projectTypes": [
+      "Residential Construction",
+      "Commercial Building",
+      "Renovation & Remodeling",
+      "Design & Planning",
+      "Other"
+    ],
+    "cards": [
+      {
+        "id": "phone",
+        "kind": "phone",
+        "title": "Phone",
+        "lines": [
+          "+63 966 0691 500",
+          "+63 915 1688 197"
+        ],
+        "note": "Mon-Fri 8am-6pm"
+      },
+      {
+        "id": "email",
+        "kind": "email",
+        "title": "Email",
+        "lines": [
+          "pambuildersconstruction@gmail.com"
+        ],
+        "note": "We'll respond within 24 hours"
+      },
+      {
+        "id": "office",
+        "kind": "address",
+        "title": "Office Location",
+        "lines": [
+          "17 Pinto St.",
+          "Rancho Estate 1 Concepcion Dos, Marikina City"
+        ],
+        "note": ""
+      },
+      {
+        "id": "hours",
+        "kind": "hours",
+        "title": "Business Hours",
+        "lines": [
+          "Monday - Friday: 8:00 AM - 6:00 PM",
+          "Saturday: 9:00 AM - 3:00 PM",
+          "Sunday: Closed"
+        ],
+        "note": ""
+      }
+    ],
+    "emergency": {
+      "enabled": true,
+      "title": "Need Emergency Service?",
+      "description": "We offer 24/7 emergency response for urgent construction issues",
+      "phone": "+63 915 1688 197"
+    }
+  }
+}

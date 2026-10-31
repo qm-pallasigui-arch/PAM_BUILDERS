@@ -15,6 +15,11 @@ try {
     else if (!existing.rows[0].sessions) await client.query(await readFile(new URL('../db/migrations/002_portal_backend.sql',import.meta.url),'utf8'));
     await client.query("INSERT INTO portal_migrations(name) VALUES('002_portal_backend')");
   }
+  const management = await client.query("SELECT name FROM portal_migrations WHERE name='003_project_management'");
+  if (!management.rows.length) {
+    await client.query(await readFile(new URL('../db/migrations/003_project_management.sql',import.meta.url),'utf8'));
+    await client.query("INSERT INTO portal_migrations(name) VALUES('003_project_management')");
+  }
   await client.query('COMMIT');
   console.log('Portal schema is up to date.');
 } catch (error) { await client.query('ROLLBACK'); throw error; }

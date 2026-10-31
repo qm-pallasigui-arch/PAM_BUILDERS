@@ -1,0 +1,78 @@
+{
+  "leadership": [
+    {
+      "id": "ronald",
+      "name": "Ronald M. Milana",
+      "role": "Founder & Lead Architect",
+      "experience": "35+ years in construction",
+      "image": ""
+    },
+    {
+      "id": "lyza",
+      "name": "Lyza Punzalan",
+      "role": "Project Manager",
+      "experience": "20+ years in project management",
+      "image": ""
+    }
+  ],
+  "contact": {
+    "title": "Contact Us",
+    "intro": "Ready to start your project? Get in touch with us today for a free consultation and detailed quote.",
+    "formTitle": "Send Us a Message",
+    "projectTypes": [
+      "Residential Construction",
+      "Commercial Building",
+      "Renovation & Remodeling",
+      "Design & Planning",
+      "Other"
+    ],
+    "cards": [
+      {
+        "id": "phone",
+        "kind": "phone",
+        "title": "Phone",
+        "lines": [
+          "+63 966 0691 500",
+          "+63 915 1688 197"
+        ],
+        "note": "Mon-Fri 8am-6pm"
+      },
+      {
+        "id": "email",
+        "kind": "email",
+        "title": "Email",
+        "lines": [
+          "pambuildersconstruction@gmail.com"
+        ],
+        "note": "We'll respond within 24 hours"
+      },
+      {
+        "id": "office",
+        "kind": "address",
+        "title": "Office Location",
+        "lines": [
+          "17 Pinto St.",
+          "Rancho Estate 1 Concepcion Dos, Marikina City"
+        ],
+        "note": ""
+      },
+      {
+        "id": "hours",
+        "kind": "hours",
+        "title": "Business Hours",
+        "lines": [
+          "Monday - Friday: 8:00 AM - 6:00 PM",
+          "Saturday: 9:00 AM - 3:00 PM",
+          "Sunday: Closed"
+        ],
+        "note": ""
+      }
+    ],
+    "emergency": {
+      "enabled": true,
+      "title": "Need Emergency Service?",
+      "description": "We offer 24/7 emergency response for urgent construction issues",
+      "phone": "+63 915 1688 197"
+    }
+  }
+}

@@ -22,6 +22,9 @@ import { UsersAdmin } from "./pages/portal/UsersAdmin";
 import { NotAuthorized } from "./pages/portal/NotAuthorized";
 import { RoleRoute } from "./pages/portal/RoleRoute";
 
+import { WebsiteContent } from "./pages/portal/WebsiteContent";
+import { WebsiteAbout,WebsiteContact } from "./pages/portal/WebsitePages";
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -43,6 +46,9 @@ export const router = createBrowserRouter([
     Component: PortalLayout,
     children: [
       { path: "dashboard", Component: Dashboard },
+      { path: "website-projects", element: <RoleRoute roles={["admin"]}><WebsiteContent /></RoleRoute> },
+      { path: "website-contact", element: <RoleRoute roles={["admin"]}><WebsiteContact /></RoleRoute> },
+      { path: "website-about", element: <RoleRoute roles={["admin"]}><WebsiteAbout /></RoleRoute> },
       { path: "projects", Component: ProjectsList },
       { path: "projects/:id", Component: ProjectDetail },
       { path: "projects/:id/submit-report", Component: ReportSubmit },
