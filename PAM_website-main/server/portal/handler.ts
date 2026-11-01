@@ -75,6 +75,36 @@ export function createHandler(injected?: Database, storage = { put, get, del }) 
       const projectFilter = req.query.project_id === undefined ? null : v.id.parse(req.query.project_id);
       if (projectFilter) await projectAccess(db, user, projectFilter);
 
+      if ((resource === 'projects' || resource === 'reports') && rowId && parts.length === 3 && parts[2] === 'approval' && method === 'PUT') {
+        const input = z.object({ status: z.enum(['pending','approved','rejected']), reason: z.string().trim().max(2000).default('') }).parse(req.body);
+        if (input.status === 'pending' && resource === 'projects') roles(user, ...managers);
+        else roles(user, 'admin');
+        must(input.status !== 'pending' || resource === 'projects', 'Submit a new report to request another review.');
+        must(input.status !== 'rejected' || input.reason.length > 0, 'Explain why this record was rejected.');
+        await transaction(db, async tx => {
+          const table = resource === 'projects' ? 'projects' : 'progress_reports';
+          if (resource === 'reports') {
+            const ref = (await tx.query('SELECT project_id FROM progress_reports WHERE id=$1', [rowId])).rows[0];
+            if (!ref) return notFound();
+            await tx.query('SELECT id FROM projects WHERE id=$1 FOR UPDATE', [ref.project_id]);
+          }
+          const record = (await tx.query(`SELECT * FROM ${table} WHERE id=$1 FOR UPDATE`, [rowId])).rows[0];
+          if (!record) return notFound();
+          if (record.approval_status === input.status) return;
+          must(input.status === 'pending' ? record.approval_status === 'rejected' : record.approval_status === 'pending', 'This record has already been reviewed.');
+          if (resource === 'reports' && input.status === 'approved') {
+            const project = (await tx.query('SELECT approval_status FROM projects WHERE id=$1', [record.project_id])).rows[0];
+            must(project.approval_status === 'approved', 'Approve the project first.');
+            const latest = (await tx.query("SELECT id,percent_complete FROM progress_reports WHERE project_id=$1 AND approval_status='approved' ORDER BY id DESC LIMIT 1", [record.project_id])).rows[0];
+            must(!latest || record.id > latest.id, 'A newer report is already approved. Reject this superseded report and submit a current report if needed.');
+            must(record.correction_reason || record.percent_complete >= (latest?.percent_complete ?? 0), 'This report would decrease official progress. Reject it and request a corrected report.');
+          }
+          await tx.query(`UPDATE ${table} SET approval_status=$2,approval_reason=$3,reviewed_by=$4,reviewed_at=now() WHERE id=$1`, [rowId,input.status,input.reason,user.id]);
+          await tx.query('INSERT INTO approval_events(resource,record_id,status,actor_id,reason) VALUES($1,$2,$3,$4,$5)', [resource,rowId,input.status,user.id,input.reason]);
+        });
+        return res.json({ok:true});
+      }
+
       if (resource === 'users' && parts.length <= 2) {
         roles(user, 'admin');
         if (method === 'GET' && !rowId) return page(res, (await db.query(`SELECT ${q.userColumns} FROM users WHERE id>$1 ORDER BY id LIMIT $2`, [after, limit + 1])).rows, limit);
@@ -101,17 +131,22 @@ export function createHandler(injected?: Database, storage = { put, get, del }) 
       if (resource === 'projects') {
         if (method === 'GET' && parts.length === 1) {
           const { rows } = await db.query(`SELECT ${q.projectColumns} FROM projects p WHERE p.id>$1 AND
-            ($2::boolean OR EXISTS(SELECT 1 FROM project_assignments a WHERE a.project_id=p.id AND a.user_id=$3)) ORDER BY p.id LIMIT $4`, [after,user.role !== 'site_staff',user.id,limit+1]);
+            ($2::boolean OR (p.approval_status='approved' AND EXISTS(SELECT 1 FROM project_assignments a WHERE a.project_id=p.id AND a.user_id=$3))) ORDER BY p.id LIMIT $4`, [after,user.role !== 'site_staff',user.id,limit+1]);
           const sites = await db.query(`SELECT ${q.siteColumns} FROM sites WHERE project_id=ANY($1::int[]) ORDER BY id`, [rows.slice(0,limit).map(p => p.id)]);
           return page(res, rows, limit, { sites: sites.rows });
         }
         if (method === 'POST' && parts.length === 1) {
-          roles(user, 'admin');
+          roles(user, ...managers);
           const input = v.projectInput.extend({ siteName: z.string().trim().min(1).max(200), siteAddress: z.string().trim().max(255), assignedUserIds: z.array(v.id).max(500).optional() }).parse({client:'',location:'',endDate:null,...req.body});
+          if (input.assignedUserIds?.length) roles(user, 'admin');
           must(!input.endDate || input.endDate >= input.startDate, 'End date cannot precede start date.');
           const result = await transaction(db, async tx => {
             const { rows } = await tx.query(`INSERT INTO projects(name,client,location,start_date,end_date,budget,status,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, [input.name,input.client,input.location,input.startDate,input.endDate,input.budget,input.status,user.id]);
             const pid = rows[0].id;
+            if (user.role === 'admin') {
+              await tx.query("UPDATE projects SET approval_status='approved',reviewed_by=$2,reviewed_at=now() WHERE id=$1", [pid,user.id]);
+              await tx.query("INSERT INTO approval_events(resource,record_id,status,actor_id,reason) VALUES('projects',$1,'approved',$2,'Automatically approved: created by admin')", [pid,user.id]);
+            }
             await validatePermits(tx,pid,input.permits??[]);
             await tx.query('UPDATE projects SET category=$2,color=$3,permits=$4 WHERE id=$1',[pid,input.category ?? 'General',input.color ?? null,JSON.stringify(input.permits ?? [])]);
             await tx.query('INSERT INTO sites(project_id,name,address) VALUES($1,$2,$3)', [pid,input.siteName,input.siteAddress]);
@@ -148,7 +183,7 @@ export function createHandler(injected?: Database, storage = { put, get, del }) 
       }
       if (resource === 'milestones' && parts.length <= 2) {
         if (method === 'GET' && !rowId) return page(res,(await db.query(`SELECT ${q.milestoneColumns} FROM milestones WHERE id>$1 AND ($2::int IS NULL OR project_id=$2)
-          AND ($3::boolean OR project_id IN (SELECT project_id FROM project_assignments WHERE user_id=$4)) ORDER BY id LIMIT $5`, [after,projectFilter,user.role !== 'site_staff',user.id,limit+1])).rows,limit);
+          AND ($3::boolean OR project_id IN (SELECT a.project_id FROM project_assignments a JOIN projects p ON p.id=a.project_id WHERE a.user_id=$4 AND p.approval_status='approved')) ORDER BY id LIMIT $5`, [after,projectFilter,user.role !== 'site_staff',user.id,limit+1])).rows,limit);
         roles(user,...managers);
         if (method === 'POST' && !rowId) {
           const m = v.milestoneInput.parse({description:'',...req.body});
@@ -168,10 +203,11 @@ export function createHandler(injected?: Database, storage = { put, get, del }) 
       }
       if (resource === 'reports') {
         if (method === 'GET' && parts.length === 1) return page(res,(await db.query(`SELECT ${q.reportColumns} FROM progress_reports r WHERE r.id>$1 AND ($2::int IS NULL OR r.project_id=$2)
-          AND ($3::boolean OR r.project_id IN(SELECT project_id FROM project_assignments WHERE user_id=$4)) ORDER BY r.id LIMIT $5`, [after,projectFilter,user.role !== 'site_staff',user.id,limit+1])).rows,limit);
+          AND ($3::boolean OR r.project_id IN(SELECT a.project_id FROM project_assignments a JOIN projects p ON p.id=a.project_id WHERE a.user_id=$4 AND p.approval_status='approved')) ORDER BY r.id LIMIT $5`, [after,projectFilter,user.role !== 'site_staff',user.id,limit+1])).rows,limit);
         if (method === 'POST' && path === 'reports/photo') {
           const input = v.photoInput.parse(req.body);
           await projectAccess(db,user,input.projectId,true);
+          must((await db.query('SELECT approval_status FROM projects WHERE id=$1',[input.projectId])).rows[0]?.approval_status === 'approved', 'Approve the project before submitting reports.');
           must((await db.query('SELECT id FROM sites WHERE id=$1 AND project_id=$2',[input.siteId,input.projectId])).rows.length, 'Site does not belong to this project.');
           let bytes: Buffer;
           try { bytes = v.validateImage(input.data,input.contentType); } catch { throw new HttpError(400,'Use a JPEG, PNG or WebP image up to 3 MB.'); }
@@ -196,13 +232,18 @@ export function createHandler(injected?: Database, storage = { put, get, del }) 
           const reportId = await transaction(db,async tx => {
             await projectAccess(tx,user,r.projectId,!r.correctionReason);
             if (r.correctionReason) roles(user,'admin');
-            await tx.query('SELECT id FROM projects WHERE id=$1 FOR UPDATE',[r.projectId]);
-            const previous = (await tx.query('SELECT percent_complete FROM progress_reports WHERE project_id=$1 ORDER BY id DESC LIMIT 1',[r.projectId])).rows[0];
+            const project = (await tx.query('SELECT approval_status FROM projects WHERE id=$1 FOR UPDATE',[r.projectId])).rows[0];
+            must(project.approval_status === 'approved', 'Approve the project before submitting reports.');
+            const previous = (await tx.query("SELECT percent_complete FROM progress_reports WHERE project_id=$1 AND approval_status='approved' ORDER BY id DESC LIMIT 1",[r.projectId])).rows[0];
             must(!!r.correctionReason || r.percentComplete >= (previous?.percent_complete ?? 0),'Progress cannot decrease. An admin correction with a reason is required.');
             must((await tx.query('SELECT id FROM sites WHERE id=$1 AND project_id=$2',[r.siteId,r.projectId])).rows.length,'Site does not belong to this project.');
             if (r.photoDataUrl) must((await tx.query('SELECT id FROM photo_uploads WHERE blob_url=$1 AND project_id=$2 AND site_id=$3 AND uploaded_by=$4',[r.photoDataUrl,r.projectId,r.siteId,user.id])).rows.length,'Upload this photo for the selected site first.');
             const { rows } = await tx.query('INSERT INTO progress_reports(project_id,site_id,submitted_by,report_date,description,percent_complete,photo_url) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id',[r.projectId,r.siteId,user.id,r.reportDate,r.description,r.percentComplete,r.photoDataUrl]);
             const rid = rows[0].id;
+            if (user.role === 'admin') {
+              await tx.query("UPDATE progress_reports SET approval_status='approved',reviewed_by=$2,reviewed_at=now() WHERE id=$1", [rid,user.id]);
+              await tx.query("INSERT INTO approval_events(resource,record_id,status,actor_id,reason) VALUES('reports',$1,'approved',$2,'Automatically approved: created by admin')", [rid,user.id]);
+            }
             if(r.correctionReason) await tx.query('UPDATE progress_reports SET correction_reason=$2 WHERE id=$1',[rid,r.correctionReason]);
             for (const m of r.materials) await tx.query('INSERT INTO materials_log(report_id,project_id,material_name,quantity,unit) VALUES($1,$2,$3,$4,$5)',[rid,r.projectId,m.materialName,m.quantity,m.unit]);
             for (const m of r.manpower) await tx.query('INSERT INTO manpower_log(report_id,project_id,worker_name,position,hours_worked) VALUES($1,$2,$3,$4,$5)',[rid,r.projectId,m.workerName,m.position,m.hoursWorked]);

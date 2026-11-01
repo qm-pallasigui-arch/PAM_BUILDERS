@@ -9,7 +9,7 @@ interface PortalData {
 }
 const empty: PortalData = {projects:[],sites:[],milestones:[],reports:[],notifications:[],delayAlerts:[],users:[]};
 interface DataContextValue extends PortalData {
-  loading: boolean; error: string | null; refresh: () => Promise<void>;
+  loading: boolean; hasLoaded: boolean; error: string | null; refresh: () => Promise<void>;
   addReport: (input: Omit<ProgressReport,'id'>) => Promise<void>;
   addMilestone: (input: Omit<Milestone,'id'|'completedAt'>) => Promise<void>;
   setMilestoneStatus: (id: number,status: Milestone['status']) => Promise<void>;
@@ -25,6 +25,7 @@ export function DataProvider({children}: {children:ReactNode}) {
   const [data,setData] = useState<PortalData>(empty);
   const [loading,setLoading] = useState(false);
   const [error,setError] = useState<string|null>(null);
+  const [loadedFor,setLoadedFor] = useState<typeof user>(null);
   const generation = useRef(0);
   const refresh = useCallback(async () => {
     const current = ++generation.current;
@@ -53,14 +54,17 @@ export function DataProvider({children}: {children:ReactNode}) {
           after = page.nextCursor;
         } while (true);
       }
-      if (current === generation.current) setData({projects,sites,milestones,reports,notifications,delayAlerts,users});
+      if (current === generation.current) {
+        setData({projects,sites,milestones,reports,notifications,delayAlerts,users});
+        setLoadedFor(user);
+      }
     } catch (error) {
       if (current === generation.current) setError((error as Error).message);
     } finally { if (current === generation.current) setLoading(false); }
   },[user]);
-  useEffect(() => { setData(empty); void refresh(); return () => { generation.current++; }; },[refresh]);
+  useEffect(() => { setData(empty); setLoadedFor(null); void refresh(); return () => { generation.current++; }; },[refresh]);
   const mutate = async (path: string,method: string,input?: unknown) => { await api(path,method,input); await refresh(); };
-  return <DataContext.Provider value={{...data,loading,error,refresh,
+  return <DataContext.Provider value={{...(loadedFor === user ? data : empty),loading,hasLoaded: !!user && loadedFor === user,error,refresh,
     addReport: input => mutate('reports','POST',input),
     addMilestone: input => mutate('milestones','POST',input),
     setMilestoneStatus: (id,status) => mutate('milestones/' + id,'PUT',{status}),

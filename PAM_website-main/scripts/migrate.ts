@@ -20,6 +20,11 @@ try {
     await client.query(await readFile(new URL('../db/migrations/003_project_management.sql',import.meta.url),'utf8'));
     await client.query("INSERT INTO portal_migrations(name) VALUES('003_project_management')");
   }
+  const approvals = await client.query("SELECT name FROM portal_migrations WHERE name='004_approvals'");
+  if (!approvals.rows.length) {
+    await client.query(await readFile(new URL('../db/migrations/004_approvals.sql',import.meta.url),'utf8'));
+    await client.query("INSERT INTO portal_migrations(name) VALUES('004_approvals')");
+  }
   await client.query('COMMIT');
   console.log('Portal schema is up to date.');
 } catch (error) { await client.query('ROLLBACK'); throw error; }

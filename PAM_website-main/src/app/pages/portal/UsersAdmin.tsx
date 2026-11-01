@@ -1,4 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { PageHeader } from "../../portal/PageHeader";
+import { AddCard } from "../../portal/AddCard";
+import { useRef, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { usePortalData } from '../../portal/data';
 import type { PortalUser } from '../../portal/types';
@@ -18,7 +20,9 @@ export function UsersAdmin() {
   const [id,setId] = useState<number|null>(null);
   const [form,setForm] = useState(blank);
   const [busy,setBusy] = useState(false);
+  const trigger = useRef<HTMLElement | null>(null);
   const edit = (user?:PortalUser) => {
+    trigger.current = document.activeElement as HTMLElement;
     setId(user?.id ?? null); setForm(user ? {...user,password:''} : blank); setOpen(true);
   };
   const submit = async (e:FormEvent) => {
@@ -28,12 +32,13 @@ export function UsersAdmin() {
     finally {setBusy(false);}
   };
   return <div className="space-y-6">
-    <div className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-2xl font-semibold leading-8 tracking-tight text-gray-900">Users</h1><p className="text-gray-500 text-sm mt-1">Manage staff accounts and access.</p></div><Button onClick={()=>edit()}>New user</Button></div>
+    <PageHeader section="Administration" title="Users" description="Manage staff accounts, access roles, and account status." />
+    <AddCard title="Add user" description="Create a staff account and choose its access role." onClick={()=>edit()} />
     <Card><CardContent className="pt-6"><Table>
       <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
       <TableBody>{users.map(u=><TableRow key={u.id}><TableCell className="font-medium">{u.name}</TableCell><TableCell>{u.email}</TableCell><TableCell>{ROLE_LABEL[u.role]}</TableCell><TableCell><Badge variant={u.status==='active'?'active':'outline'}>{u.status}</Badge></TableCell><TableCell><Button variant="outline" size="default" onClick={()=>edit(u)}>Edit</Button></TableCell></TableRow>)}</TableBody>
     </Table></CardContent></Card>
-    <Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>{id ? 'Edit user' : 'New user'}</DialogTitle></DialogHeader>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent onCloseAutoFocus={event => { event.preventDefault(); trigger.current?.focus(); }}><DialogHeader><DialogTitle>{id ? 'Edit user' : 'New user'}</DialogTitle></DialogHeader>
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-1.5"><Label htmlFor="user-name">Name</Label><Input id="user-name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required maxLength={150}/></div>
         <div className="space-y-1.5"><Label htmlFor="user-email">Email</Label><Input id="user-email" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} required/></div>

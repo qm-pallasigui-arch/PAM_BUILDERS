@@ -23,7 +23,7 @@ export function createDemoApi() {
   return (path: string, method = 'GET', body?: unknown): unknown => {
     const [resource, rawId, action] = path.split('?')[0].split('/');
     const id = Number(rawId);
-    const input = (body ?? {}) as Record<string, any>;
+    const { approvalStatus: _approval, approvalReason: _reason, reviewedBy: _reviewer, reviewedAt: _reviewed, ...input } = (body ?? {}) as Record<string, any>;
     if (resource === 'login' && method === 'POST') {
       const found = users.find(u => u.email.toLowerCase() === String(input.email).trim().toLowerCase() && u.password === input.password && u.status === 'active');
       if (!found) throw new Error('Invalid email or password.');
@@ -39,11 +39,31 @@ export function createDemoApi() {
     if (resource === 'me') return {user: profile(user)};
     if (resource === 'logout') { userId = null; return {ok:true}; }
     const manager = user.role !== 'site_staff';
-    const allowed = projects.filter(p => manager || p.assignedUserIds?.includes(user.id));
+    const allowed = projects.filter(p => manager || ((!p.approvalStatus || p.approvalStatus === 'approved') && p.assignedUserIds?.includes(user.id)));
     const canView = (projectId: number) => allowed.some(p => p.id === projectId);
     const requireManager = () => { if (!manager) throw new Error('Manager access required.'); };
     if (resource === 'users' && user.role !== 'admin') throw new Error('Admin access required.');
     if (resource === 'notifications') requireManager();
+
+    if ((resource === 'projects' || resource === 'reports') && action === 'approval' && method === 'PUT') {
+      if (!(resource === 'projects' && input.status === 'pending' && manager) && user.role !== 'admin') throw new Error('Admin access required.');
+      if (!['pending','approved','rejected'].includes(input.status) || (resource === 'reports' && input.status === 'pending')) throw new Error('Invalid approval status.');
+      if (input.status === 'rejected' && !String(input.reason ?? '').trim()) throw new Error('Explain why this record was rejected.');
+      const record = (resource === 'projects' ? projects : reports).find(r => r.id === id);
+      if (!record) throw new Error('Record not found.');
+      if (record.approvalStatus === input.status) return {ok:true};
+      if (input.status === 'pending' ? record.approvalStatus !== 'rejected' : record.approvalStatus !== 'pending') throw new Error('This record has already been reviewed.');
+      if (resource === 'reports' && input.status === 'approved') {
+        const report = record as ProgressReport;
+        const project = projects.find(p => p.id === report.projectId)!;
+        if (project.approvalStatus && project.approvalStatus !== 'approved') throw new Error('Approve the project first.');
+        const latest = reports.filter(r => r.projectId === report.projectId && (!r.approvalStatus || r.approvalStatus === 'approved')).sort((a,b) => b.id-a.id)[0];
+        if (latest && report.id < latest.id) throw new Error('A newer report is already approved. Reject this superseded report.');
+        if (!report.correctionReason && report.percentComplete < (latest?.percentComplete ?? 0)) throw new Error('This report would decrease official progress.');
+      }
+      Object.assign(record, {approvalStatus:input.status, approvalReason:String(input.reason ?? '').trim(), reviewedBy:user.id, reviewedAt:new Date().toISOString()});
+      return {ok:true};
+    }
 
     if (method === 'GET') {
       switch(resource) {
@@ -57,17 +77,18 @@ export function createDemoApi() {
     if (resource === 'reports' && method === 'POST') {
       const project = projects.find(p => p.id === input.projectId);
       if (!project || (!project.assignedUserIds?.includes(user.id) && !(input.correctionReason&&user.role==='admin'))) throw new Error('You must be assigned to this project.');
+      if (project.approvalStatus && project.approvalStatus !== 'approved') throw new Error('Approve the project before submitting reports.');
       if (input.siteId !== null && !sites.some(s => s.id === input.siteId && s.projectId === project.id)) throw new Error('Select a site in this project.');
       if(input.correctionReason&&user.role!=='admin')throw new Error('Admin access required.');
       if(!input.correctionReason&&input.percentComplete<latestProgress(project.id,reports))throw new Error('Progress cannot decrease. An admin correction with a reason is required.');
-      reports.unshift({...input,id:nextId(reports),submittedBy:user.id,submittedByName:user.name} as ProgressReport);
+      reports.unshift({...input,id:nextId(reports),submittedBy:user.id,submittedByName:user.name,approvalStatus:user.role === 'admin' ? 'approved' : 'pending',reviewedBy:user.role === 'admin' ? user.id : null,reviewedAt:user.role === 'admin' ? new Date().toISOString() : null} as ProgressReport);
       return {ok:true};
     }
     requireManager();
     if (resource === 'projects' && method === 'POST' && !rawId) {
       const projectId = nextId(projects), siteId = nextId(sites);
       const {siteName,siteAddress,...project} = input;
-      projects.push({...project,id:projectId,siteIds:[siteId],assignedUserIds:[user.id]} as Project);
+      projects.push({...project,id:projectId,siteIds:[siteId],assignedUserIds:[user.id],approvalStatus:user.role === 'admin' ? 'approved' : 'pending',reviewedBy:user.role === 'admin' ? user.id : null,reviewedAt:user.role === 'admin' ? new Date().toISOString() : null} as Project);
       sites.push({id:siteId,projectId,name:siteName,address:siteAddress} as Site);
     } else if (resource === 'projects' && method === 'POST' && action === 'sites') {
       const project = projects.find(p => p.id === id);

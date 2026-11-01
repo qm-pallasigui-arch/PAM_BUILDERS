@@ -1,3 +1,4 @@
+import { PageHeader } from "../../portal/PageHeader";
 import { z } from "zod";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -134,28 +135,9 @@ export function WebsitePages({ page }: { page: "about" | "contact" }) {
   if (error) return <p role="alert">{error}</p>;
   return (
     <div className="space-y-8">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            Website Content / {page === "about" ? "About" : "Contact"}
-          </h1>
-          <p className="mt-1 text-gray-500">
-            Preview your public cards below. Changes appear on the website after
-            saving.
-          </p>
-          <p className="mt-1 text-sm text-orange-700" role="status">
-            {dirty ? "Unsaved changes" : "All changes saved"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link to={`/${page}`}>View public page</Link>
-          </Button>
-          <Button disabled={busy || !dirty} onClick={save}>
-            {busy ? "Saving..." : "Save changes"}
-          </Button>
-        </div>
-      </header>
+      <PageHeader section="Website content" title={page === "about" ? "About page" : "Contact page"} description="Preview your public cards below. Changes appear on the website after saving." actions={<><Button asChild variant="outline"><Link to={`/${page}`}>View public page</Link></Button><Button disabled={busy || !dirty} onClick={save}>{busy ? "Saving..." : "Save changes"}</Button></>}>
+        <p className="mt-2 text-sm text-orange-800" role="status">{dirty ? "Unsaved changes" : "All changes saved"}</p>
+      </PageHeader>
       <fieldset disabled={busy} className="min-w-0 space-y-8">
         {page === "about" ? (
           <>

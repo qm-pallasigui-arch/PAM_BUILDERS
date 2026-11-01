@@ -27,7 +27,7 @@ export function formatCurrency(amount: number): string {
 /** Latest reported % complete for a project, from its most recent progress report (0 if none yet). */
 export function latestProgress(projectId: number, reports: ProgressReport[]): number {
   const projectReports = reports
-    .filter((r) => r.projectId === projectId)
+    .filter((r) => r.projectId === projectId && (!r.approvalStatus || r.approvalStatus === 'approved'))
     .sort((a, b) => b.id - a.id);
   return projectReports[0]?.percentComplete ?? 0;
 }

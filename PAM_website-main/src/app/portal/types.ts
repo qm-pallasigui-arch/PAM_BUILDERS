@@ -13,8 +13,15 @@ export interface PortalUser {
 }
 
 export type ProjectStatus = "ongoing" | "on_hold" | "completed";
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export interface ApprovalRecord {
+  approvalStatus?: ApprovalStatus;
+  approvalReason?: string;
+  reviewedBy?: number | null;
+  reviewedAt?: string | null;
+}
 
-export interface Project {
+export interface Project extends ApprovalRecord {
   id: number;
   name: string;
   client: string;
@@ -64,7 +71,7 @@ export interface ManpowerLogEntry {
 
 export interface Permit { name: string; status: "pending" | "submitted" | "approved" | "expired"; reference: string; issuedDate: string; expiryDate: string; attachment: string }
 
-export interface ProgressReport {
+export interface ProgressReport extends ApprovalRecord {
   correctionReason?: string | null;
   id: number;
   projectId: number;
