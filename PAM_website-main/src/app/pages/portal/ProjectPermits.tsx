@@ -7,6 +7,7 @@ import { api } from "../../portal/api";
 import { uploadContentAsset } from "../../portal/content";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../portal/Button";
+import { PermitStatusBadge } from "../../portal/PermitStatusBadge";
 const newPermit = (name = ""): Permit => ({
   name,
   status: "pending",
@@ -101,6 +102,7 @@ export function ProjectPermits({ project }: { project: Project }) {
           disabled={busy}
           className="rounded-lg border p-4 space-y-3"
         >
+          <div className="flex flex-wrap items-center gap-2"><PermitStatusBadge status={p.status} />{dirty && <span className="text-xs text-gray-500">Unsaved changes</span>}</div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label>
               Name

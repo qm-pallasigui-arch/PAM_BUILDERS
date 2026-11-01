@@ -1,3 +1,4 @@
+import { PageHeader } from "../../portal/PageHeader";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../portal/api";
@@ -79,19 +80,8 @@ export function WebsiteContent({ about = false }: { about?: boolean }) {
   if (error) return <p role="alert">{error}</p>;
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            {about ? "Website Content / About" : "Website Projects"}
-          </h1>
-          <p className="text-gray-500">
-            Changes go live when you save. Draft projects stay private.
-          </p>
-        </div>
-        <Button disabled={busy} onClick={save}>
-          Save website content
-        </Button>
-      </div>
+      <PageHeader section="Website content" title={about ? "About page" : "Website projects"} description="Changes go live when you save. Draft projects stay private." actions={<Button disabled={busy} onClick={save}>Save website content</Button>} />
+
       {about ? (
         <section className="rounded-xl border bg-white p-6 space-y-4">
           <h2 className="text-lg font-semibold">BIR registration</h2>

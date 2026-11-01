@@ -181,6 +181,13 @@ test('upgrade migration applies to the original schema and matches fresh install
     await upgrade.exec(schema.split('-- Apply after the original portal schema')[0]);
     await upgrade.exec(await readFile(new URL('../db/migrations/002_portal_backend.sql',import.meta.url),'utf8'));
     await upgrade.exec(await readFile(new URL('../db/migrations/003_project_management.sql',import.meta.url),'utf8'));
+    await upgrade.exec("INSERT INTO users(id,name,email,password_hash,role) VALUES(1,'Historical admin','historical@example.com','test','admin'); INSERT INTO projects(id,name) VALUES(1,'Historical project'); INSERT INTO progress_reports(id,project_id,submitted_by,report_date) VALUES(1,1,1,'2026-01-01');");
+    await upgrade.exec(await readFile(new URL('../db/migrations/004_approvals.sql',import.meta.url),'utf8'));
+    assert.equal((await upgrade.query<{approval_status:string}>('SELECT approval_status FROM projects WHERE id=1')).rows[0].approval_status,'approved');
+    assert.equal((await upgrade.query<{approval_status:string}>('SELECT approval_status FROM progress_reports WHERE id=1')).rows[0].approval_status,'approved');
+    await upgrade.exec("INSERT INTO projects(id,name) VALUES(2,'New pending project');");
+    await upgrade.exec(await readFile(new URL('../db/migrations/004_approvals.sql',import.meta.url),'utf8'));
+    assert.equal((await upgrade.query<{approval_status:string}>('SELECT approval_status FROM projects WHERE id=2')).rows[0].approval_status,'pending');
     const columns = "SELECT table_name,column_name,data_type FROM information_schema.columns WHERE table_schema='public' ORDER BY table_name,ordinal_position";
     assert.deepEqual((await upgrade.query(columns)).rows,(await pg.query(columns)).rows);
   } finally {await upgrade.close();}
@@ -194,7 +201,8 @@ test('editing and reporting preserve project identity and enforce progress floor
  const updated=await request(`projects/${project.id}`,'PUT',{name:'Edited name',endDate:'2027-01-01'},cookies[1]);
  assert.equal(updated.body.id,project.id);assert.equal(updated.body.client,'Retained client');assert.equal(updated.body.budget,1500);assert.equal(updated.body.color,'#123456');
  const input={...report,projectId:project.id,siteId:project.siteIds[0],percentComplete:50};
- assert.equal((await request('reports','POST',input,cookies[3])).status,201);
+ const pending=await request('reports','POST',input,cookies[3]); assert.equal(pending.status,201);
+ assert.equal((await request(`reports/${pending.body.id}/approval`,'PUT',{status:'approved'},cookies[1])).status,200);
  assert.equal((await request('reports','POST',{...input,percentComplete:40},cookies[3])).status,400);
  assert.equal((await request('reports','POST',{...input,percentComplete:60},cookies[3])).status,201);
  assert.equal((await request('reports','POST',{...input,correctionReason:' '},cookies[1])).status,400);
@@ -265,4 +273,39 @@ test('About and Contact content supports ordered cards and publishes only saved 
  published=(await request('public-content')).body;assert.equal(published.leadership[0].role,'Founder');assert.equal(published.contact.title,'Talk to PAM');
  assert.equal((await request('content','PUT',{leadership:[],contact:{...contact,cards:[]}},cookies[1])).status,200);
  published=(await request('public-content')).body;assert.deepEqual(published.leadership,[]);assert.deepEqual(published.contact.cards,[]);assert.equal((await request(path)).status,401);
+});
+
+
+test('admin approvals gate project access and report progress with audited decisions', async () => {
+  const created = await request('projects','POST',{name:'Approval workflow',client:'Client',location:'Manila',startDate:'2026-01-01',endDate:null,budget:100,status:'ongoing',siteName:'Main',siteAddress:'Manila',approvalStatus:'approved'},cookies[2]);
+  assert.equal(created.status,201,JSON.stringify(created.body));
+  const project = created.body;
+  assert.equal(project.approvalStatus,'pending');
+  await request(`projects/${project.id}`,'PUT',{assignedUserIds:[2,3],approvalStatus:'approved'},cookies[1]);
+  assert.equal((await request(`projects/${project.id}`,'GET',{},cookies[3])).status,404);
+  assert.ok(!(await request('projects','GET',{},cookies[3])).body.items.some((p:any)=>p.id===project.id));
+  const input = {...report,projectId:project.id,siteId:project.siteIds[0],percentComplete:20};
+  assert.equal((await request('reports','POST',input,cookies[2])).status,400);
+  assert.equal((await request(`projects/${project.id}/approval`,'PUT',{status:'approved'},cookies[2])).status,403);
+  assert.equal((await request(`projects/${project.id}/approval`,'PUT',{status:'rejected'},cookies[1])).status,400);
+  assert.equal((await request(`projects/${project.id}/approval`,'PUT',{status:'rejected',reason:'Confirm the budget'},cookies[1])).status,200);
+  assert.equal((await request(`projects/${project.id}/approval`,'PUT',{status:'pending'},cookies[2])).status,200);
+  assert.equal((await request(`projects/${project.id}/approval`,'PUT',{status:'approved'},cookies[1])).status,200);
+  assert.equal((await request(`projects/${project.id}`,'GET',{},cookies[3])).status,200);
+  const pending = await request('reports','POST',{...input,approvalStatus:'approved'},cookies[3]);
+  assert.equal(pending.status,201); assert.equal(pending.body.approvalStatus,'pending');
+  assert.equal((await request(`reports/${pending.body.id}/approval`,'PUT',{status:'approved'},cookies[2])).status,403);
+  assert.equal((await request(`reports/${pending.body.id}/approval`,'PUT',{status:'approved'},cookies[1])).status,200);
+  const approved = (await request(`reports?project_id=${project.id}`,'GET',{},cookies[3])).body.items[0];
+  assert.equal(approved.approvalStatus,'approved'); assert.equal(approved.reviewedBy,1); assert.ok(approved.reviewedAt);
+  const lower = await request('reports','POST',{...input,percentComplete:10},cookies[3]); assert.equal(lower.status,400);
+  const older = await request('reports','POST',{...input,percentComplete:30},cookies[3]);
+  const newer = await request('reports','POST',{...input,percentComplete:40},cookies[3]);
+  assert.equal((await request(`reports/${newer.body.id}/approval`,'PUT',{status:'approved'},cookies[1])).status,200);
+  assert.equal((await request(`reports/${older.body.id}/approval`,'PUT',{status:'approved'},cookies[1])).status,400);
+  assert.equal((await request(`reports/${older.body.id}/approval`,'PUT',{status:'rejected',reason:'Superseded'},cookies[1])).status,200);
+  const audit = await db.query("SELECT * FROM approval_events WHERE resource='projects' AND record_id=$1 ORDER BY id",[project.id]);
+  assert.deepEqual(audit.rows.map(r=>r.status),['rejected','pending','approved']);
+  const adminReport = await request('reports','POST',{...input,percentComplete:50,correctionReason:'Admin verified'},cookies[1]);
+  assert.equal(adminReport.body.approvalStatus,'approved');
 });

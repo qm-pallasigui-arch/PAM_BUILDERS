@@ -120,11 +120,11 @@ export function Contact() {
       {/* Contact Content */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-3 gap-12">
+          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
             {/* Contact Form */}
-            <div className="lg:col-span-2">
+            <div className="min-w-0">
               <Card>
-                <CardContent className="p-8">
+                <CardContent className="p-5 sm:p-8">
                   <h2 className="text-2xl font-semibold mb-6">
                     {contact.formTitle}
                   </h2>
@@ -250,7 +250,7 @@ export function Contact() {
             </div>
 
             {/* Contact Information */}
-            <div className="space-y-6">
+            <div className="grid min-w-0 content-start gap-4 sm:grid-cols-2 lg:grid-cols-1">
               {contact.cards.map((card) => (
                 <ContactInfoCard key={card.id} card={card} />
               ))}

@@ -40,3 +40,26 @@ test('demo About and Contact edits appear on the public pages without creating n
  content.contact.cards[0].lines=['+63 912 345 6789'];api('content','PUT',content);
  const published=api('public-content') as any;assert.equal(published.leadership.at(-1).name,'New Leader');assert.equal(published.contact.cards[0].lines[0],'+63 912 345 6789');assert.equal((api('projects') as any).items.length,projectCount);
 });
+
+
+test('demo approvals mirror manager submission, staff gating, and admin review', () => {
+  const api=createDemoApi();
+  api('login','POST',{email:'pm@pambuilders.com',password:'pm123'});
+  api('projects','POST',{name:'Pending demo',siteName:'Main',siteAddress:'Manila',approvalStatus:'approved'});
+  const project=(api('projects') as any).items.find((p:any)=>p.name==='Pending demo');
+  assert.equal(project.approvalStatus,'pending');
+  assert.throws(()=>api(`projects/${project.id}/approval`,'PUT',{status:'approved'}),/Admin/);
+  api('login','POST',{email:'admin@pambuilders.com',password:'admin123'});
+  api(`projects/${project.id}`,'PUT',{assignedUserIds:[2,3]});
+  api('login','POST',{email:'site@pambuilders.com',password:'site123'});
+  assert.ok(!(api('projects') as any).items.some((p:any)=>p.id===project.id));
+  api('login','POST',{email:'admin@pambuilders.com',password:'admin123'});
+  api(`projects/${project.id}/approval`,'PUT',{status:'approved'});
+  api('login','POST',{email:'site@pambuilders.com',password:'site123'});
+  api('reports','POST',{projectId:project.id,siteId:project.siteIds[0],percentComplete:25,approvalStatus:'approved'});
+  const pending=(api('reports') as any).items.find((r:any)=>r.projectId===project.id);
+  assert.equal(pending.approvalStatus,'pending');
+  api('login','POST',{email:'admin@pambuilders.com',password:'admin123'});
+  api(`reports/${pending.id}/approval`,'PUT',{status:'approved'});
+  assert.equal((api('reports') as any).items.find((r:any)=>r.id===pending.id).approvalStatus,'approved');
+});

@@ -1,8 +1,11 @@
+import { ReportCard } from "../../portal/ReportCard";
+import { PageHeader } from "../../portal/PageHeader";
+import { ReportCreateAction } from "../../portal/ReportCreateAction";
 import { useState } from "react";
+import { Link } from "react-router";
+import { ContentState } from "../../portal/ContentState";
+import { Button } from "../../portal/Button";
 import { usePortalData } from "../../portal/data";
-import { Card, CardContent } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
-import { formatDate } from "../../portal/utils";
 
 export function ReportsList() {
   const { projects, reports } = usePortalData();
@@ -15,11 +18,9 @@ export function ReportsList() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold leading-8 tracking-tight text-gray-900">Progress Reports</h1>
-          <p className="text-gray-500 text-sm mt-1">All daily site reports across projects.</p>
-        </div>
+        <PageHeader section="Site reporting" title="Progress reports" description="Review daily site updates, photos, and approval decisions." />
         <select
+          aria-label="Filter reports by project"
           className="h-9 rounded-md border border-gray-300 px-3 text-sm"
           value={projectFilter}
           onChange={(e) => setProjectFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
@@ -32,35 +33,9 @@ export function ReportsList() {
       </div>
 
       <div className="space-y-3">
-        {filtered.length === 0 && <p className="text-sm text-gray-500">No reports found.</p>}
-        {filtered.map((r) => {
-          const project = projects.find((p) => p.id === r.projectId);
-          return (
-            <Card key={r.id}>
-              <CardContent className="pt-6">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <p className="font-medium text-gray-900">{project?.name}</p>
-                    <p className="text-sm text-gray-500">{formatDate(r.reportDate)} · {r.submittedByName}</p>
-                  </div>
-                  <Badge variant="active">{r.percentComplete}% complete</Badge>
-                </div>
-                <p className="text-sm text-gray-700 mt-2">{r.description}</p>
-                {r.photoDataUrl && <a href={r.photoDataUrl} target="_blank" rel="noreferrer"><img src={r.photoDataUrl} alt="Site progress" loading="lazy" className="mt-3 h-32 rounded-md border object-cover" /></a>}
-                {(r.materials.length > 0 || r.manpower.length > 0) && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {r.materials.map((m, i) => (
-                      <Badge key={`mat-${i}`} variant="outline">{m.materialName}: {m.quantity} {m.unit}</Badge>
-                    ))}
-                    {r.manpower.map((m, i) => (
-                      <Badge key={`man-${i}`} variant="outline">{m.workerName} — {m.hoursWorked}h</Badge>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+        <ReportCreateAction projectId={projectFilter === "all" ? undefined : projectFilter} />
+        {filtered.length === 0 && <ContentState title={projectFilter === 'all' ? 'No progress reports yet' : 'No reports for this project'} description={projectFilter === 'all' ? 'Open a project to submit its first site report.' : 'Choose another project or clear the filter to see all reports.'} action={projectFilter === 'all' ? <Button asChild variant="outline"><Link to="/portal/projects">View projects</Link></Button> : <Button variant="outline" onClick={() => setProjectFilter('all')}>Clear filter</Button>} />}
+        {filtered.map(r => <ReportCard key={r.id} report={r} projectName={projects.find(p => p.id === r.projectId)?.name ?? 'Project'} />)}
       </div>
     </div>
   );

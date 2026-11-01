@@ -55,13 +55,13 @@ export function ContactInfoCard({
     text: Info,
   }[card.kind];
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-xl border bg-white shadow-sm">
-      <div className="flex flex-1 items-start gap-4 p-6">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
-          <Icon className="h-6 w-6" />
+    <article className="flex min-w-0 flex-col rounded-xl border bg-white shadow-sm">
+      <div className="flex flex-1 items-start gap-3 p-5">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+          <Icon aria-hidden="true" className="h-5 w-5" />
         </div>
-        <div className="min-w-0">
-          <h3 className="mb-2 font-semibold">{card.title}</h3>
+        <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+          <h3 className="mb-2 break-words font-semibold">{card.title}</h3>
           <div className="space-y-1 text-gray-600">
             {card.lines.map((line, i) =>
               card.kind === "phone" ? (
@@ -74,7 +74,7 @@ export function ContactInfoCard({
                 </a>
               ) : card.kind === "email" ? (
                 <a
-                  className="block break-all hover:text-orange-600"
+                  className="block hover:text-orange-600"
                   key={i}
                   href={`mailto:${line}`}
                 >

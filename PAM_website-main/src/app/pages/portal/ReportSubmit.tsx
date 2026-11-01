@@ -1,3 +1,4 @@
+import { PageHeader } from "../../portal/PageHeader";
 import { CompletionControl } from "./CompletionControl";
 import { latestProgress } from "../../portal/utils";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
@@ -47,6 +48,8 @@ export function ReportSubmit() {
 
   if (!project) return <p className="text-gray-500">Project not found.</p>;
 
+  if (project.approvalStatus && project.approvalStatus !== "approved") return <p role="status">This project must be approved before you can submit a report.</p>;
+
   const handlePhoto = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -90,25 +93,23 @@ export function ReportSubmit() {
       manpower: manpower.filter((m) => m.workerName.trim()),
     });
 
-    toast.success("Progress report submitted.");
+    toast.success(hasRole('admin') ? 'Progress report submitted and approved.' : 'Progress report submitted for admin approval.');
     navigate(`/portal/projects/${projectId}`);
     } catch (error) { toast.error((error as Error).message); }
     finally { setSubmitting(false); }
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <Button variant="outline" onClick={()=>navigate(`/portal/projects/${projectId}`)}>Back to project</Button>
-      <div>
-        <h1 className="text-2xl font-semibold leading-8 tracking-tight text-gray-900">Submit Daily Progress Report</h1>
-        <p className="text-gray-500 text-sm mt-1">{project.name}</p>
-      </div>
+      <PageHeader section="Site reporting / New report" title="Add progress report" description={project.name} />
 
       {previous&&<Button variant="outline" onClick={()=>{setDescription(previous.description);setMaterials(previous.materials.map(m=>({...m})));setManpower(previous.manpower.map(m=>({...m})));toast.success('Previous report copied. Review quantities and hours before submitting.');}}>Copy previous report</Button>}
       <p className="text-sm text-gray-500">Current project progress: {baseline}%. Each submission adds to this project's report history.</p>
       {hasRole('admin')&&<div className="rounded border p-4 space-y-3"><label className="flex gap-2"><input type="checkbox" checked={correction} onChange={e=>{setCorrection(e.target.checked);if(!e.target.checked)setPercentComplete(baseline);}}/>Admin progress correction</label>{correction&&<label className="block">Required correction reason<Textarea value={reason} onChange={e=>setReason(e.target.value)}/></label>}</div>}
       <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <Card className="min-w-0">
           <CardHeader><CardTitle className="text-base">Report Details</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -138,15 +139,21 @@ export function ReportSubmit() {
 
             <CompletionControl value={percentComplete} saved={baseline} correction={correction} disabled={submitting} onChange={setPercentComplete}/>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="photo">Site photo</Label>
-              <Input disabled={!project.assignedUserIds?.includes(user?.id??0)} id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhoto} />
-              {photoDataUrl && (
-                <img src={photoDataUrl} alt="Site preview" className="mt-2 h-32 rounded-md border object-cover" />
-              )}
-            </div>
+
           </CardContent>
         </Card>
+        <Card className="min-w-0">
+          <CardHeader><CardTitle className="text-base">Site photo</CardTitle><p className="text-sm text-gray-600">Document the work described in this report.</p></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="photo">Upload a site photo</Label>
+              <Input disabled={submitting || !project.assignedUserIds?.includes(user?.id??0)} id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhoto} aria-describedby="photo-help" />
+              <p id="photo-help" className="text-xs text-gray-500">JPEG, PNG, or WebP, up to 3 MB.{!project.assignedUserIds?.includes(user?.id??0) && ' Photo uploads require assignment to this project.'}</p>
+            </div>
+            {photoDataUrl ? <figure className="space-y-2"><img src={photoDataUrl} alt={`Site photo preview for ${project.name}`} className="aspect-[4/3] w-full rounded-lg border bg-gray-50 object-contain" /><figcaption className="break-words text-xs text-gray-600">{photoFile?.name}</figcaption></figure> : <div className="flex aspect-[4/3] items-center justify-center rounded-lg border border-dashed bg-gray-50 p-6 text-center text-sm text-gray-500">Your site photo preview will appear here.</div>}
+          </CardContent>
+        </Card>
+        </div>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -166,9 +173,9 @@ export function ReportSubmit() {
                 <Input placeholder="Material (e.g. Cement)" value={m.materialName} onChange={(e) => updateMaterial(i, { materialName: e.target.value })} />
                 <Input type="number" placeholder="Qty" value={m.quantity || ""} onChange={(e) => updateMaterial(i, { quantity: Number(e.target.value) })} />
                 <Input placeholder="Unit" value={m.unit} onChange={(e) => updateMaterial(i, { unit: e.target.value })} />
-                <button type="button" onClick={() => setMaterials((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove row">
-                  <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-500" />
-                </button>
+                <Button size="icon" variant="ghost" className="text-red-700 hover:bg-red-50 hover:text-red-800" type="button" onClick={() => setMaterials((prev) => prev.filter((_, idx) => idx !== i))} aria-label={`Remove material row ${i + 1}`}>
+                  <Trash2 aria-hidden="true" className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </CardContent>
@@ -192,17 +199,17 @@ export function ReportSubmit() {
                 <Input placeholder="Worker name" value={m.workerName} onChange={(e) => updateManpower(i, { workerName: e.target.value })} />
                 <Input placeholder="Position" value={m.position} onChange={(e) => updateManpower(i, { position: e.target.value })} />
                 <Input type="number" placeholder="Hrs" value={m.hoursWorked || ""} onChange={(e) => updateManpower(i, { hoursWorked: Number(e.target.value) })} />
-                <button type="button" onClick={() => setManpower((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove row">
-                  <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-500" />
-                </button>
+                <Button size="icon" variant="ghost" className="text-red-700 hover:bg-red-50 hover:text-red-800" type="button" onClick={() => setManpower((prev) => prev.filter((_, idx) => idx !== i))} aria-label={`Remove manpower row ${i + 1}`}>
+                  <Trash2 aria-hidden="true" className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </CardContent>
         </Card>
 
         <div className="flex gap-3">
-          <Button type="submit" disabled={submitting} className="bg-orange-600 hover:bg-orange-700">{submitting ? "Submitting..." : "Submit Report"}</Button>
-          <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
+          <Button type="submit" loading={submitting} loadingLabel="Submitting report..." className="bg-orange-600 hover:bg-orange-700">Submit Report</Button>
+          <Button type="button" variant="outline" disabled={submitting} onClick={() => navigate(-1)}>Cancel</Button>
         </div>
       </form>
     </div>

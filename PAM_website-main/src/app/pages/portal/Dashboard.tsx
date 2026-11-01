@@ -1,3 +1,4 @@
+import { PageHeader } from "../../portal/PageHeader";
 import { Link } from "react-router";
 import { FolderKanban, Flag, ClipboardList, AlertTriangle } from "lucide-react";
 import { useAuth } from "../../portal/auth";
@@ -21,12 +22,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold leading-8 tracking-tight text-gray-900">
-          Welcome back, {user?.name.split(" ")[0]}
-        </h1>
-        <p className="text-gray-500 text-sm mt-1 capitalize">{user?.role.replace("_", " ")} dashboard</p>
-      </div>
+      <PageHeader section="Dashboard" title={`Welcome back, ${user?.name.split(" ")[0] ?? "team"}`} description="Your overview of projects, deadlines, and recent site activity." />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
@@ -67,7 +63,7 @@ export function Dashboard() {
             <Link
               key={p.id}
               to={`/portal/projects/${p.id}`}
-              className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-md hover:bg-gray-50 border border-transparent hover:border-gray-200"
+              className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-md portal-interactive border border-transparent"
             >
               <div>
                 <p className="font-medium text-gray-900">{p.name}</p>
